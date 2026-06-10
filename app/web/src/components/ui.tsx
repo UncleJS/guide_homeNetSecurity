@@ -2,6 +2,7 @@ import type {
   ButtonHTMLAttributes, InputHTMLAttributes, SelectHTMLAttributes,
   TextareaHTMLAttributes, ReactNode, HTMLAttributes,
 } from "react";
+import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // Button --------------------------------------------------------------------
@@ -75,6 +76,53 @@ export function Badge({ className, children }: { className?: string; children: R
     <span className={cn("inline-flex items-center rounded-full border border-border px-2 py-0.5 text-xs font-medium text-foreground", className)}>
       {children}
     </span>
+  );
+}
+
+// Modal ---------------------------------------------------------------------
+export function Modal({
+  open, onClose, title, children, footer,
+}: {
+  open: boolean; onClose: () => void; title: string;
+  children: ReactNode; footer?: ReactNode;
+}) {
+  if (!open) return null;
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 p-4 sm:items-center"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-2xl rounded-lg border border-border bg-card p-5 text-foreground shadow-lg"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-foreground">{title}</h3>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="rounded-md p-1 text-foreground opacity-70 hover:bg-accent hover:opacity-100"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        {children}
+        {footer && <div className="mt-5 flex justify-end gap-2">{footer}</div>}
+      </div>
+    </div>
+  );
+}
+
+// Toggle (archived view) ----------------------------------------------------
+export function Checkbox({
+  label, checked, onChange,
+}: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <label className="flex cursor-pointer items-center gap-2 text-sm text-foreground">
+      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+      {label}
+    </label>
   );
 }
 
