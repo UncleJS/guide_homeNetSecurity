@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { apiPatch, apiPost, useApi } from "@/api/client";
+import { apiPatch, apiPost, useApi, useMutation } from "@/api/client";
 import {
   Button, Card, CardTitle, Checkbox, Field, Input, Modal, Select, Table, Th, Td, Textarea,
 } from "@/components/ui";
@@ -100,14 +100,15 @@ export function Subnets() {
     } finally { setEditSaving(false); }
   }
 
-  async function archive(id: number) {
+  const rowMut = useMutation();
+  const archive = (id: number) => rowMut.run(async () => {
     await apiPost(`/subnets/${id}/archive`, {});
     await refetch();
-  }
-  async function restore(id: number) {
+  });
+  const restore = (id: number) => rowMut.run(async () => {
     await apiPost(`/subnets/${id}/restore`, {});
     await refetch();
-  }
+  });
 
   return (
     <div className="space-y-6">
@@ -125,6 +126,7 @@ export function Subnets() {
 
       {loading && <Loading />}
       {error && <ErrorState message={error} onRetry={refetch} />}
+      {rowMut.error && <p className="text-sm text-danger">{rowMut.error}</p>}
       {data && data.data.length === 0 && <Empty title="No subnets yet">Add your first network above (start with your trusted LAN).</Empty>}
       {data && data.data.length > 0 && (
         <Table>

@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { apiPost } from "@/api/client";
-import { useApi } from "@/api/client";
+import { apiPost, useApi, useMutation } from "@/api/client";
 import { formatLocal } from "@/lib/format";
 import { Button, Card, CardTitle, Textarea, Select, Badge } from "./ui";
 import { Loading, ErrorState, Empty } from "./states";
@@ -23,22 +22,20 @@ const CAT_CLASS: Record<string, string> = {
 export function NotesPanel({
   entityType, entityId,
 }: { entityType: "subnet" | "device" | "ip_address"; entityId: number }) {
-  const path = `/notes?entityType=${entityType}&entityId=${entityId}`;
-  const { data, loading, error, refetch } = useApi<Note[]>(path);
+  const path = `/notes?entityType=${entityType}&entityId=${entityId}&pageSize=200`;
+  const { data, loading, error, refetch } = useApi<{ data: Note[] }>(path);
+  const notes = data?.data ?? null;
   const [body, setBody] = useState("");
   const [category, setCategory] = useState<"history" | "reference" | "general">("general");
-  const [saving, setSaving] = useState(false);
+  const saveMut = useMutation();
 
   async function add() {
     if (!body.trim()) return;
-    setSaving(true);
-    try {
+    const ok = await saveMut.run(async () => {
       await apiPost("/notes", { entityType, entityId, category, body });
-      setBody("");
       await refetch();
-    } finally {
-      setSaving(false);
-    }
+    });
+    if (ok) setBody("");
   }
 
   return (
@@ -57,16 +54,17 @@ export function NotesPanel({
             <option value="history">history</option>
             <option value="reference">reference</option>
           </Select>
-          <Button onClick={add} disabled={saving || !body.trim()}>{saving ? "Saving…" : "Add note"}</Button>
+          <Button onClick={add} disabled={saveMut.pending || !body.trim()}>{saveMut.pending ? "Saving…" : "Add note"}</Button>
         </div>
+        {saveMut.error && <p className="text-sm text-danger">{saveMut.error}</p>}
       </div>
 
       {loading && <Loading />}
       {error && <ErrorState message={error} onRetry={refetch} />}
-      {data && data.length === 0 && <Empty title="No notes yet">Add the first history or reference entry above.</Empty>}
-      {data && data.length > 0 && (
+      {notes && notes.length === 0 && <Empty title="No notes yet">Add the first history or reference entry above.</Empty>}
+      {notes && notes.length > 0 && (
         <ul className="space-y-3">
-          {data.map((n) => (
+          {notes.map((n) => (
             <li key={n.id} className="rounded-md border border-border p-3">
               <div className="mb-1 flex items-center justify-between gap-2">
                 <Badge className={CAT_CLASS[n.category]}>{n.category}</Badge>

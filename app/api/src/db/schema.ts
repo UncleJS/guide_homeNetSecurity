@@ -52,11 +52,11 @@ export const subnets = mysqlTable("subnets", {
     sql`(case when archived_at_UTC is null then cidr else null end)`,
     { mode: "virtual" },
   ),
-}, (t) => [
-  uniqueIndex("uk_subnets_name_active").on(t.nameActive),
-  uniqueIndex("uk_subnets_cidr_active").on(t.cidrActive),
-  index("ix_subnets_zone").on(t.trustZone),
-]);
+}, (t) => ({
+  nameActiveUk: uniqueIndex("uk_subnets_name_active").on(t.nameActive),
+  cidrActiveUk: uniqueIndex("uk_subnets_cidr_active").on(t.cidrActive),
+  zoneIx: index("ix_subnets_zone").on(t.trustZone),
+}));
 
 // Devices --------------------------------------------------------------------
 export const devices = mysqlTable("devices", {
@@ -76,17 +76,20 @@ export const devices = mysqlTable("devices", {
   posY: int("pos_y"),
   lastSeenUTC: datetime("last_seen_UTC"),
   ...lifecycle,
-}, (t) => [
-  index("ix_devices_risk").on(t.riskLevel),
-]);
+}, (t) => ({
+  riskIx: index("ix_devices_risk").on(t.riskLevel),
+}));
 
 // IP addresses ---------------------------------------------------------------
 export const ipAddresses = mysqlTable("ip_addresses", {
   id: bigint("id", { mode: "number", unsigned: true })
     .primaryKey()
     .autoincrement(),
-  subnetId: bigint("subnet_id", { mode: "number", unsigned: true }).notNull(),
-  deviceId: bigint("device_id", { mode: "number", unsigned: true }),
+  subnetId: bigint("subnet_id", { mode: "number", unsigned: true })
+    .notNull()
+    .references(() => subnets.id),
+  deviceId: bigint("device_id", { mode: "number", unsigned: true })
+    .references(() => devices.id),
   address: varchar("address", { length: 45 }).notNull(),
   assignmentType: mysqlEnum("assignment_type", ASSIGNMENT_TYPES)
     .notNull()
@@ -104,42 +107,46 @@ export const ipAddresses = mysqlTable("ip_addresses", {
     sql`(case when archived_at_UTC is null then mac_address else null end)`,
     { mode: "virtual" },
   ),
-}, (t) => [
-  uniqueIndex("uk_ip_addr_active").on(t.addrActive),
-  uniqueIndex("uk_ip_mac_active").on(t.macActive),
-  index("ix_ip_subnet").on(t.subnetId),
-  index("ix_ip_device").on(t.deviceId),
-]);
+}, (t) => ({
+  addrActiveUk: uniqueIndex("uk_ip_addr_active").on(t.addrActive),
+  macActiveUk: uniqueIndex("uk_ip_mac_active").on(t.macActive),
+  subnetIx: index("ix_ip_subnet").on(t.subnetId),
+  deviceIx: index("ix_ip_device").on(t.deviceId),
+}));
 
 // Device ports / services ----------------------------------------------------
 export const devicePorts = mysqlTable("device_ports", {
   id: bigint("id", { mode: "number", unsigned: true })
     .primaryKey()
     .autoincrement(),
-  deviceId: bigint("device_id", { mode: "number", unsigned: true }).notNull(),
+  deviceId: bigint("device_id", { mode: "number", unsigned: true })
+    .notNull()
+    .references(() => devices.id),
   port: int("port").notNull(),
   protocol: varchar("protocol", { length: 8 }).notNull().default("tcp"),
   service: varchar("service", { length: 80 }),
   notes: text("notes"),
   ...lifecycle,
-}, (t) => [
-  index("ix_ports_device").on(t.deviceId),
-]);
+}, (t) => ({
+  deviceIx: index("ix_ports_device").on(t.deviceId),
+}));
 
 // Hardening checklist items --------------------------------------------------
 export const hardeningItems = mysqlTable("hardening_items", {
   id: bigint("id", { mode: "number", unsigned: true })
     .primaryKey()
     .autoincrement(),
-  deviceId: bigint("device_id", { mode: "number", unsigned: true }).notNull(),
+  deviceId: bigint("device_id", { mode: "number", unsigned: true })
+    .notNull()
+    .references(() => devices.id),
   control: varchar("control", { length: 200 }).notNull(),
   state: mysqlEnum("state", HARDENING_STATES).notNull().default("pending"),
   notes: text("notes"),
   completedAtUTC: datetime("completed_at_UTC"),
   ...lifecycle,
-}, (t) => [
-  index("ix_hardening_device").on(t.deviceId),
-]);
+}, (t) => ({
+  deviceIx: index("ix_hardening_device").on(t.deviceId),
+}));
 
 // Notes / history (polymorphic, append-style) --------------------------------
 export const notes = mysqlTable("notes", {
@@ -152,9 +159,9 @@ export const notes = mysqlTable("notes", {
   body: text("body").notNull(),
   author: varchar("author", { length: 120 }),
   ...lifecycle,
-}, (t) => [
-  index("ix_notes_entity").on(t.entityType, t.entityId),
-]);
+}, (t) => ({
+  entityIx: index("ix_notes_entity").on(t.entityType, t.entityId),
+}));
 
 // Topology links (explicit device -> device uplinks) -------------------------
 export const links = mysqlTable("links", {
@@ -162,14 +169,16 @@ export const links = mysqlTable("links", {
     .primaryKey()
     .autoincrement(),
   sourceDeviceId: bigint("source_device_id", { mode: "number", unsigned: true })
-    .notNull(),
+    .notNull()
+    .references(() => devices.id),
   targetDeviceId: bigint("target_device_id", { mode: "number", unsigned: true })
-    .notNull(),
+    .notNull()
+    .references(() => devices.id),
   linkType: mysqlEnum("link_type", LINK_TYPES).notNull().default("uplink"),
   label: varchar("label", { length: 120 }),
   notes: text("notes"),
   ...lifecycle,
-}, (t) => [
-  index("ix_links_source").on(t.sourceDeviceId),
-  index("ix_links_target").on(t.targetDeviceId),
-]);
+}, (t) => ({
+  sourceIx: index("ix_links_source").on(t.sourceDeviceId),
+  targetIx: index("ix_links_target").on(t.targetDeviceId),
+}));

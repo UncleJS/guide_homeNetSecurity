@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import type {
   ButtonHTMLAttributes, InputHTMLAttributes, SelectHTMLAttributes,
   TextareaHTMLAttributes, ReactNode, HTMLAttributes,
@@ -86,6 +87,13 @@ export function Modal({
   open: boolean; onClose: () => void; title: string;
   children: ReactNode; footer?: ReactNode;
 }) {
+  // Close on Escape (backdrop click is handled below).
+  useEffect(() => {
+    if (!open) return;
+    function onKey(e: KeyboardEvent) { if (e.key === "Escape") onClose(); }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
   if (!open) return null;
   return (
     <div

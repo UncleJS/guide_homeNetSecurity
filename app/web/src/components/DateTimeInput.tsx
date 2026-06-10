@@ -89,7 +89,7 @@ export function DateTimeInput({ value, onChange, id }: Props) {
           type="text"
           inputMode="numeric"
           autoComplete="off"
-          placeholder="yyyy-mm-dd"
+          placeholder="yyyy-MM-dd"
           pattern="\d{4}-\d{2}-\d{2}"
           maxLength={10}
           value={date}

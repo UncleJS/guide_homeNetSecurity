@@ -15,7 +15,13 @@ Bun.serve({
       // SPA fallback — let the client router handle unknown paths.
       file = Bun.file(`${DIST}/index.html`);
     }
-    return new Response(file);
+    return new Response(file, {
+      headers: {
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "DENY",
+        "Referrer-Policy": "no-referrer",
+      },
+    });
   },
 });
 

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { apiPatch, apiPost, useApi } from "@/api/client";
+import { apiPatch, apiPost, useApi, useMutation } from "@/api/client";
 import {
   Button, Card, CardTitle, Checkbox, Field, Input, Modal, Select, Table, Th, Td,
 } from "@/components/ui";
@@ -78,6 +78,7 @@ export function Devices() {
 
   const [form, setForm] = useState<Form>(EMPTY);
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const [editing, setEditing] = useState<Device | null>(null);
   const [editForm, setEditForm] = useState<Form>(EMPTY);
@@ -85,11 +86,13 @@ export function Devices() {
   const [editError, setEditError] = useState<string | null>(null);
 
   async function create() {
-    setSaving(true);
+    setSaving(true); setFormError(null);
     try {
       await apiPost("/devices", toPayload(form));
       setForm(EMPTY);
       await refetch();
+    } catch (e) {
+      setFormError(e instanceof Error ? e.message : "Failed to create");
     } finally { setSaving(false); }
   }
 
@@ -109,14 +112,15 @@ export function Devices() {
     } finally { setEditSaving(false); }
   }
 
-  async function archive(id: number) {
+  const rowMut = useMutation();
+  const archive = (id: number) => rowMut.run(async () => {
     await apiPost(`/devices/${id}/archive`, {});
     await refetch();
-  }
-  async function restore(id: number) {
+  });
+  const restore = (id: number) => rowMut.run(async () => {
     await apiPost(`/devices/${id}/restore`, {});
     await refetch();
-  }
+  });
 
   return (
     <div className="space-y-6">
@@ -137,11 +141,13 @@ export function Devices() {
       <Card>
         <CardTitle className="mb-3">Add a device</CardTitle>
         <Fields form={form} setForm={setForm} />
+        {formError && <p className="mb-2 text-sm text-danger">{formError}</p>}
         <Button onClick={create} disabled={saving || !form.hostname}>{saving ? "Saving…" : "Add device"}</Button>
       </Card>
 
       {loading && <Loading />}
       {error && <ErrorState message={error} onRetry={refetch} />}
+      {rowMut.error && <p className="text-sm text-danger">{rowMut.error}</p>}
       {data && data.data.length === 0 && <Empty title="No devices yet">Add devices from your scan/inventory (chapter 03).</Empty>}
       {data && data.data.length > 0 && (
         <Table>

@@ -4,7 +4,8 @@ WORKDIR /app
 
 # Bun workspace rooted at app/
 COPY app/ ./
-RUN bun install --frozen-lockfile || bun install
+# Reproducible install — bun.lock is committed; fail loudly if it is missing/stale.
+RUN bun install --frozen-lockfile
 
 WORKDIR /app/api
 ENV NODE_ENV=production

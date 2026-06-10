@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 const BASE = (import.meta.env.VITE_API_BASE_URL ?? "http://localhost:11291") + "/api";
 
@@ -39,21 +39,51 @@ export function useApi<T>(path: string | null) {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Monotonic sequence so a slow stale response never overwrites a newer one.
+  const seq = useRef(0);
 
   const refetch = useCallback(async () => {
-    if (path === null) return;
+    if (path === null) {
+      setLoading(false);
+      return;
+    }
+    const mySeq = ++seq.current;
     setLoading(true);
     setError(null);
     try {
-      setData(await apiGet<T>(path));
+      const result = await apiGet<T>(path);
+      if (seq.current === mySeq) setData(result);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unknown error");
+      if (seq.current === mySeq) setError(e instanceof Error ? e.message : "Unknown error");
     } finally {
-      setLoading(false);
+      if (seq.current === mySeq) setLoading(false);
     }
   }, [path]);
 
   useEffect(() => { void refetch(); }, [refetch]);
 
   return { data, loading, error, refetch };
+}
+
+// Shared state wrapper for mutations (archive/restore/toggle/save):
+// surfaces the error inline and exposes a pending flag — never silent.
+export function useMutation() {
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const run = useCallback(async (fn: () => Promise<unknown>): Promise<boolean> => {
+    setPending(true);
+    setError(null);
+    try {
+      await fn();
+      return true;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Request failed");
+      return false;
+    } finally {
+      setPending(false);
+    }
+  }, []);
+
+  return { run, pending, error };
 }

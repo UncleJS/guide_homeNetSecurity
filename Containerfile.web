@@ -2,7 +2,8 @@
 FROM docker.io/oven/bun:1 AS build
 WORKDIR /app
 COPY app/ ./
-RUN bun install --frozen-lockfile || bun install
+# Reproducible install — bun.lock is committed; fail loudly if it is missing/stale.
+RUN bun install --frozen-lockfile
 WORKDIR /app/web
 # VITE_API_BASE_URL is baked at build time; override via build-arg if needed
 ARG VITE_API_BASE_URL=http://localhost:11291

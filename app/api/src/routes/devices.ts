@@ -6,7 +6,7 @@ import {
   RISK_LEVELS,
 } from "../db/schema.ts";
 import { DEFAULT_HARDENING_CONTROLS } from "../lib/hardening.ts";
-import { touch, archiveMark, restoreMark, paginate } from "../lib/util.ts";
+import { touch, archiveMark, restoreMark, paginate, affected } from "../lib/util.ts";
 
 const DeviceBody = t.Object({
   hostname: t.String({ minLength: 1, maxLength: 255 }),
@@ -55,7 +55,8 @@ export const deviceRoutes = new Elysia({ prefix: "/devices", tags: ["Devices"] }
     detail: { summary: "List devices" },
   })
   .get("/:id", async ({ params, status }) => {
-    const [device] = await db.select().from(devices).where(eq(devices.id, params.id));
+    const [device] = await db.select().from(devices)
+      .where(and(eq(devices.id, params.id), isNull(devices.archivedAtUTC)));
     if (!device) return status(404, { message: "Device not found" });
     const [ips, ports, hardening, deviceNotes] = await Promise.all([
       db.select().from(ipAddresses).where(and(eq(ipAddresses.deviceId, params.id), isNull(ipAddresses.archivedAtUTC))),
@@ -75,15 +76,23 @@ export const deviceRoutes = new Elysia({ prefix: "/devices", tags: ["Devices"] }
     return row;
   }, { body: DeviceBody, detail: { summary: "Create a device (seeds default hardening checklist)" } })
   .patch("/:id", async ({ params, body, status }) => {
-    await db.update(devices).set({ ...normalizeLastSeen(body), ...touch() }).where(eq(devices.id, params.id));
-    const [row] = await db.select().from(devices).where(eq(devices.id, params.id));
+    await db.update(devices).set({ ...normalizeLastSeen(body), ...touch() })
+      .where(and(eq(devices.id, params.id), isNull(devices.archivedAtUTC)));
+    const [row] = await db.select().from(devices)
+      .where(and(eq(devices.id, params.id), isNull(devices.archivedAtUTC)));
     return row ?? status(404, { message: "Device not found" });
   }, { params: t.Object({ id: t.Numeric() }), body: t.Partial(DeviceBody), detail: { summary: "Update a device" } })
-  .post("/:id/archive", async ({ params }) => {
-    await db.update(devices).set(archiveMark()).where(and(eq(devices.id, params.id), isNull(devices.archivedAtUTC)));
+  .post("/:id/archive", async ({ params, status }) => {
+    const res = await db.update(devices).set(archiveMark()).where(and(eq(devices.id, params.id), isNull(devices.archivedAtUTC)));
+    if (!affected(res)) {
+      // Already archived is an idempotent no-op; missing is a 404.
+      const [row] = await db.select({ id: devices.id }).from(devices).where(eq(devices.id, params.id));
+      if (!row) return status(404, { message: "Device not found" });
+    }
     return { archived: true };
   }, { params: t.Object({ id: t.Numeric() }), detail: { summary: "Archive a device" } })
-  .post("/:id/restore", async ({ params }) => {
-    await db.update(devices).set(restoreMark()).where(eq(devices.id, params.id));
+  .post("/:id/restore", async ({ params, status }) => {
+    const res = await db.update(devices).set(restoreMark()).where(eq(devices.id, params.id));
+    if (!affected(res)) return status(404, { message: "Device not found" });
     return { restored: true };
   }, { params: t.Object({ id: t.Numeric() }), detail: { summary: "Restore a device" } });

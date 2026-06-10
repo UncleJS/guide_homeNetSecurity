@@ -7,12 +7,14 @@ import {
   Handle, Position,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { apiPost, useApi } from "@/api/client";
+import { apiPost, useApi, useMutation } from "@/api/client";
 import { Card } from "@/components/ui";
 import { Loading, ErrorState } from "@/components/states";
 import { Globe } from "lucide-react";
 
+// Index signature so GraphNode satisfies xyflow's Node["data"] constraint.
 interface GraphNode {
+  [key: string]: unknown;
   id: string; type: string; label: string; deviceId?: number;
   zone: string; ip: string | null; risk: string | null;
   isGateway?: boolean; posX: number | null; posY: number | null;
@@ -91,14 +93,17 @@ export function NetworkMap() {
     if (data) { setNodes(layout(data.nodes)); setEdges(flowEdges); }
   }, [data, flowEdges, setNodes, setEdges]);
 
+  const linkMut = useMutation();
   const onConnect = useCallback(async (c: Connection) => {
     if (!c.source || !c.target || !c.source.startsWith("d") || !c.target.startsWith("d")) return;
     const sourceDeviceId = Number(c.source.slice(1));
     const targetDeviceId = Number(c.target.slice(1));
     if (sourceDeviceId === targetDeviceId) return;
-    await apiPost("/links", { sourceDeviceId, targetDeviceId, linkType: "uplink" });
-    await refetch();
-  }, [refetch]);
+    await linkMut.run(async () => {
+      await apiPost("/links", { sourceDeviceId, targetDeviceId, linkType: "uplink" });
+      await refetch();
+    });
+  }, [refetch, linkMut]);
 
   const onNodeClick = useCallback((_: unknown, node: Node) => {
     const d = node.data as GraphNode;
@@ -116,6 +121,7 @@ export function NetworkMap() {
           Drag between two devices to record an uplink · click a node to open it · solid blue = explicit link
         </p>
       </div>
+      {linkMut.error && <p className="text-sm text-danger">Could not save link: {linkMut.error}</p>}
       <Card className="h-[70vh] p-0">
         <ReactFlow
           nodes={nodes}

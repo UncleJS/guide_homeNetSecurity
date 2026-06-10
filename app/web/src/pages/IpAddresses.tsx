@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { apiPatch, apiPost, useApi } from "@/api/client";
+import { apiPatch, apiPost, useApi, useMutation } from "@/api/client";
 import {
   Button, Card, CardTitle, Checkbox, Field, Input, Modal, Select, Table, Th, Td,
 } from "@/components/ui";
@@ -117,21 +117,17 @@ export function IpAddresses() {
     } finally { setEditSaving(false); }
   }
 
-  async function archive(id: number) {
+  const rowMut = useMutation();
+  const archive = (id: number) => rowMut.run(async () => {
     await apiPost(`/ip-addresses/${id}/archive`, {});
     await ips.refetch();
-  }
-  async function restore(id: number) {
-    try {
-      await apiPost(`/ip-addresses/${id}/restore`, {});
-      await ips.refetch();
-    } catch (e) {
-      alert(e instanceof Error ? e.message : "Failed to restore");
-    }
-  }
+  });
+  const restore = (id: number) => rowMut.run(async () => {
+    await apiPost(`/ip-addresses/${id}/restore`, {});
+    await ips.refetch();
+  });
 
   const loading = subnets.loading || devices.loading || ips.loading;
-  const error = subnets.error || devices.error || ips.error;
 
   return (
     <div className="space-y-6">
@@ -148,7 +144,10 @@ export function IpAddresses() {
       </Card>
 
       {loading && <Loading />}
-      {error && <ErrorState message={error} onRetry={ips.refetch} />}
+      {subnets.error && <ErrorState message={`Subnets: ${subnets.error}`} onRetry={subnets.refetch} />}
+      {devices.error && <ErrorState message={`Devices: ${devices.error}`} onRetry={devices.refetch} />}
+      {ips.error && <ErrorState message={`IP addresses: ${ips.error}`} onRetry={ips.refetch} />}
+      {rowMut.error && <p className="text-sm text-danger">{rowMut.error}</p>}
       {ips.data && ips.data.data.length === 0 && <Empty title="No IP allocations yet">Allocate addresses to track static/DHCP/reserved usage.</Empty>}
       {ips.data && ips.data.data.length > 0 && (
         <Table>

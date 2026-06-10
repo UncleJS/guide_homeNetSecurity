@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { apiPatch, useApi } from "@/api/client";
+import { apiPatch, useApi, useMutation } from "@/api/client";
 import { Button, Card, CardTitle, Select, Table, Th, Td } from "@/components/ui";
 import { Loading, ErrorState } from "@/components/states";
 import { RiskBadge } from "@/components/badges";
@@ -23,7 +23,9 @@ export function DeviceDetail() {
   const { id } = useParams();
   const { data, loading, error, refetch } = useApi<DeviceFull>(`/devices/${id}`);
   const [lastSeen, setLastSeen] = useState<string | null>(null);
-  const [savingSeen, setSavingSeen] = useState(false);
+  const [togglingId, setTogglingId] = useState<number | null>(null);
+  const toggleMut = useMutation();
+  const seenMut = useMutation();
 
   if (loading) return <Loading />;
   if (error) return <ErrorState message={error} onRetry={refetch} />;
@@ -32,17 +34,21 @@ export function DeviceDetail() {
   const seenValue = lastSeen ?? isoToLocalInput(data.lastSeenUTC);
 
   async function toggle(itemId: number, state: string) {
-    await apiPatch(`/hardening-items/${itemId}`, { state });
-    await refetch();
+    setTogglingId(itemId);
+    try {
+      await toggleMut.run(async () => {
+        await apiPatch(`/hardening-items/${itemId}`, { state });
+        await refetch();
+      });
+    } finally { setTogglingId(null); }
   }
   async function saveLastSeen() {
-    setSavingSeen(true);
-    try {
+    const ok = await seenMut.run(async () => {
       const iso = seenValue ? localToISO(seenValue) : null;
       await apiPatch(`/devices/${id}`, { lastSeenUTC: iso });
-      setLastSeen(null);
       await refetch();
-    } finally { setSavingSeen(false); }
+    });
+    if (ok) setLastSeen(null);
   }
 
   const doneCount = data.hardening.filter((h) => h.state === "done").length;
@@ -70,17 +76,19 @@ export function DeviceDetail() {
           <div className="mt-4">
             <CardTitle className="mb-2">Update last seen</CardTitle>
             <DateTimeInput value={seenValue} onChange={setLastSeen} />
-            <div className="mt-2"><Button onClick={saveLastSeen} disabled={savingSeen}>{savingSeen ? "Saving…" : "Save"}</Button></div>
+            {seenMut.error && <p className="mt-2 text-sm text-danger">{seenMut.error}</p>}
+            <div className="mt-2"><Button onClick={saveLastSeen} disabled={seenMut.pending}>{seenMut.pending ? "Saving…" : "Save"}</Button></div>
           </div>
         </Card>
 
         <Card>
           <CardTitle className="mb-3">Hardening checklist ({doneCount}/{data.hardening.length})</CardTitle>
+          {toggleMut.error && <p className="mb-2 text-sm text-danger">{toggleMut.error}</p>}
           <ul className="space-y-2">
             {data.hardening.map((h) => (
               <li key={h.id} className="flex items-center justify-between gap-2 rounded-md border border-border p-2">
                 <span className="text-sm text-foreground">{h.control}</span>
-                <Select value={h.state} onChange={(e) => toggle(h.id, e.target.value)} className="w-28">
+                <Select value={h.state} onChange={(e) => toggle(h.id, e.target.value)} disabled={togglingId === h.id} className="w-28">
                   {STATES.map((s) => <option key={s} value={s}>{s}</option>)}
                 </Select>
               </li>
