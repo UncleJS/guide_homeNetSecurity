@@ -1,0 +1,16 @@
+# NetInventory — dev container (all runtimes live here, never on the host)
+FROM registry.access.redhat.com/ubi10/ubi-minimal
+
+RUN microdnf install -y curl tar gzip git unzip && \
+    curl -fsSL https://bun.sh/install | bash && \
+    microdnf clean all
+ENV PATH="/root/.bun/bin:$PATH"
+
+WORKDIR /workspace
+COPY . .
+
+# Install workspace deps (Bun workspaces rooted at app/)
+RUN cd app && bun install
+
+# Default: run API + web dev servers together
+CMD ["sh", "-c", "cd app && bun run dev"]

@@ -1,0 +1,14 @@
+# NetInventory API — production image (Bun + Elysia + Drizzle)
+FROM docker.io/oven/bun:1
+WORKDIR /app
+
+# Bun workspace rooted at app/
+COPY app/ ./
+RUN bun install --frozen-lockfile || bun install
+
+WORKDIR /app/api
+ENV NODE_ENV=production
+EXPOSE 11291
+# Wait for the DB (retry migrations until it's reachable), then start the API.
+# Avoids a startup race when MariaDB isn't accepting connections yet.
+CMD ["sh", "-c", "until bun run db:migrate; do echo 'DB not ready — retrying in 3s'; sleep 3; done; bun run src/index.ts"]

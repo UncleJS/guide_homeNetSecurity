@@ -1,0 +1,34 @@
+# Env — secrets live here, never commit
+.env
+**/.env
+!.env.example
+!**/.env.example
+
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build output
+dist/
+**/dist/
+build/
+**/build/
+
+# Bun
+.bun/
+bun.lockb.bak
+
+# Logs & local data
+*.log
+logs/
+*.sqlite
+*.sqlite3
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Claude Code local/runtime state (locks, local settings)
+.claude/

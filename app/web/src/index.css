@@ -1,0 +1,37 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* High-contrast dark theme. All text uses --foreground (near-white). */
+:root,
+.dark {
+  --background: 222 47% 7%;     /* deep slate-black */
+  --card: 222 40% 11%;          /* panel */
+  --foreground: 0 0% 100%;      /* white — ALL text */
+  --border: 222 20% 28%;        /* visible borders for contrast */
+  --input: 222 25% 18%;
+  --ring: 199 89% 60%;          /* focus ring (bright cyan) */
+  --primary: 199 89% 55%;       /* cyan accent */
+  --primary-foreground: 222 47% 7%;
+  --accent: 222 30% 18%;
+  --danger: 0 84% 60%;
+  --warning: 38 92% 55%;
+  --success: 142 70% 45%;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+/* React Flow dark surface */
+.react-flow__attribution { display: none; }

@@ -1,0 +1,20 @@
+# MariaDB — data store. Port 3306 is reachable only inside the pod (NOT published).
+[Unit]
+Description=NetInventory MariaDB
+After=netinventory-pod.service
+
+[Container]
+Image=docker.io/library/mariadb:11
+Pod=netinventory-pod.pod
+Volume=netinventory-db.volume:/var/lib/mysql:Z
+# EnvironmentFile passes MARIADB_* (and the rest of .env) into the container env.
+EnvironmentFile=/home/jacos/0_opencode/guide_homeNetSecurity/.env
+HealthCmd=healthcheck.sh --connect --innodb_initialized
+HealthInterval=10s
+HealthRetries=6
+
+[Service]
+Restart=on-failure
+
+[Install]
+WantedBy=default.target

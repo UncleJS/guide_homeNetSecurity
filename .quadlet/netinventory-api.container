@@ -1,0 +1,19 @@
+# API — Elysia + Drizzle (Bun). Listens on 11291 (published by the pod).
+[Unit]
+Description=NetInventory API
+After=netinventory-pod.service netinventory-mariadb.service
+Requires=netinventory-mariadb.service
+# Don't let an early DB-not-ready race trip the restart limit.
+StartLimitIntervalSec=0
+
+[Container]
+Image=localhost/netinventory-api:latest
+Pod=netinventory-pod.pod
+EnvironmentFile=/home/jacos/0_opencode/guide_homeNetSecurity/.env
+
+[Service]
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

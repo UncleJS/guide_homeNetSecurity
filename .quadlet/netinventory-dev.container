@@ -1,0 +1,17 @@
+# Dev container — holds all runtimes (Bun). Source COPYed in at build time.
+[Unit]
+Description=NetInventory dev container
+After=netinventory-pod.service netinventory-mariadb.service
+
+[Container]
+Image=localhost/netinventory-dev:latest
+Pod=netinventory-pod.pod
+Volume=netinventory-dev.volume:/workspace:Z
+EnvironmentFile=/home/jacos/0_opencode/guide_homeNetSecurity/.env
+
+[Service]
+Restart=on-failure
+
+# No [Install] section on purpose: the dev container must NOT auto-start.
+# It shares pod ports (11290/11291) with the prod web/api and would collide.
+# Start it manually for development only — see dev.sh / `systemctl --user start netinventory-dev`.

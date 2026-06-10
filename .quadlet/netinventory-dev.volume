@@ -1,0 +1,2 @@
+# Named volume for the dev container workspace (never a bind mount).
+[Volume]

@@ -1,0 +1,14 @@
+{
+  "name": "netinventory",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": ["api", "web"],
+  "scripts": {
+    "dev": "concurrently -n api,web -c blue,green \"cd api && bun run dev\" \"cd web && bun run dev\"",
+    "build": "cd web && bun run build",
+    "test": "cd api && bun test"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}

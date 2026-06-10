@@ -1,0 +1,14 @@
+# NetInventory pod — dev container + services share this pod.
+# Ports published at the pod level; the DB port is intentionally NOT published.
+[Pod]
+PodName=netinventory
+# Bind loopback on BOTH IPv4 and IPv6 (browsers resolve localhost to ::1 first).
+# Specific loopback addresses avoid the wildcard collision (0.0.0.0 vs [::]) and,
+# being loopback-only, keep this local-only app off the LAN.
+PublishPort=127.0.0.1:11290:11290
+PublishPort=[::1]:11290:11290
+PublishPort=127.0.0.1:11291:11291
+PublishPort=[::1]:11291:11291
+
+[Install]
+WantedBy=default.target

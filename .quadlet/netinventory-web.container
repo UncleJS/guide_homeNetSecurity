@@ -1,0 +1,15 @@
+# Web — static React build served by Bun on 11290 (published by the pod).
+[Unit]
+Description=NetInventory Web UI
+After=netinventory-pod.service netinventory-api.service
+
+[Container]
+Image=localhost/netinventory-web:latest
+Pod=netinventory-pod.pod
+EnvironmentFile=/home/jacos/0_opencode/guide_homeNetSecurity/.env
+
+[Service]
+Restart=on-failure
+
+[Install]
+WantedBy=default.target
