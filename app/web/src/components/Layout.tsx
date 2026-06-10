@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from "react-router-dom";
-import { LayoutDashboard, Network, HardDrive, Globe, Share2, ShieldCheck, Radar, CalendarDays } from "lucide-react";
+import { LayoutDashboard, Network, HardDrive, Globe, Share2, ShieldCheck, Radar, CalendarDays, StickyNote } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -10,6 +10,7 @@ const NAV = [
   { to: "/map", label: "Network Map", icon: Share2 },
   { to: "/schedules", label: "Scan Schedules", icon: Radar },
   { to: "/calendar", label: "Calendar", icon: CalendarDays },
+  { to: "/notes", label: "Notes", icon: StickyNote },
 ];
 
 export function Layout() {

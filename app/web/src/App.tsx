@@ -10,6 +10,7 @@ import { Schedules } from "./pages/Schedules.tsx";
 import { ScheduleDetail } from "./pages/ScheduleDetail.tsx";
 import { ScanRunDetail } from "./pages/ScanRunDetail.tsx";
 import { Calendar } from "./pages/Calendar.tsx";
+import { Notes } from "./pages/Notes.tsx";
 
 export function App() {
   return (
@@ -26,6 +27,7 @@ export function App() {
           <Route path="schedules/:id" element={<ScheduleDetail />} />
           <Route path="runs/:id" element={<ScanRunDetail />} />
           <Route path="calendar" element={<Calendar />} />
+          <Route path="notes" element={<Notes />} />
         </Route>
       </Routes>
     </BrowserRouter>

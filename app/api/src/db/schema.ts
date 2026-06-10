@@ -27,6 +27,8 @@ export const RISK_LEVELS = ["low", "medium", "high", "critical"] as const;
 export const ASSIGNMENT_TYPES = ["static", "dhcp", "reserved"] as const;
 export const HARDENING_STATES = ["pending", "done", "na"] as const;
 export const NOTE_CATEGORIES = ["history", "reference", "general"] as const;
+export const NOTE_STATUSES = ["open", "done"] as const;
+export const NOTE_PRIORITIES = ["low", "medium", "high"] as const;
 // scan_run appended last — MariaDB ENUM extension must be append-only.
 export const NOTE_ENTITIES = ["subnet", "device", "ip_address", "scan_run"] as const;
 export const LINK_TYPES = ["uplink", "wireless", "trunk", "logical"] as const;
@@ -157,14 +159,21 @@ export const notes = mysqlTable("notes", {
   id: bigint("id", { mode: "number", unsigned: true })
     .primaryKey()
     .autoincrement(),
-  entityType: mysqlEnum("entity_type", NOTE_ENTITIES).notNull(),
-  entityId: bigint("entity_id", { mode: "number", unsigned: true }).notNull(),
+  // Both NULL = a general (global) note; both set = attached to an entity.
+  entityType: mysqlEnum("entity_type", NOTE_ENTITIES),
+  entityId: bigint("entity_id", { mode: "number", unsigned: true }),
   category: mysqlEnum("category", NOTE_CATEGORIES).notNull().default("general"),
   body: text("body").notNull(),
   author: varchar("author", { length: 120 }),
+  // Action-item fields. status NULL = plain note (not an action item).
+  status: mysqlEnum("status", NOTE_STATUSES),
+  priority: mysqlEnum("priority", NOTE_PRIORITIES),
+  dueAtUTC: datetime("due_at_UTC"),
+  doneAtUTC: datetime("done_at_UTC"),
   ...lifecycle,
 }, (t) => ({
   entityIx: index("ix_notes_entity").on(t.entityType, t.entityId),
+  statusDueIx: index("ix_notes_status_due").on(t.status, t.dueAtUTC),
 }));
 
 // Scan schedules (planned nmap scans; the scheduler executes these) ----------

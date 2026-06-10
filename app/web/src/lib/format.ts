@@ -40,6 +40,13 @@ export function localToISO(local: string): string | null {
   return d.toISOString();
 }
 
+// True when a server UTC datetime is in the past — used for overdue due dates.
+export function isPastUTC(value: string | Date | null | undefined): boolean {
+  if (!value) return false;
+  const d = parseServerUTC(value);
+  return !isNaN(d.getTime()) && d.getTime() < Date.now();
+}
+
 // Local calendar-day key ("yyyy-MM-dd") for a server UTC datetime — used to
 // bucket events into day cells of the month calendar.
 export function localDateKey(value: string | Date): string {

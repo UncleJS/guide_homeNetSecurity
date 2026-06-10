@@ -1,9 +1,9 @@
 import { Link } from "react-router-dom";
 import { useApi } from "@/api/client";
-import { Card, CardTitle, Table, Th, Td } from "@/components/ui";
+import { Badge, Card, CardTitle, Table, Th, Td } from "@/components/ui";
 import { Loading, ErrorState } from "@/components/states";
-import { RiskBadge, ZoneBadge } from "@/components/badges";
-import { formatLocal } from "@/lib/format";
+import { PriorityBadge, RiskBadge, ZoneBadge } from "@/components/badges";
+import { formatLocal, isPastUTC } from "@/lib/format";
 
 interface Summary {
   totals: { devices: number; subnets: number; ipAddresses: number };
@@ -13,6 +13,48 @@ interface Summary {
   subnetUtilization: Array<{ subnetId: number; name: string; cidr: string; zone: string; used: number; capacity: number | null; percent: number | null }>;
   hardening: { total: number; done: number; na: number; applicable: number; percent: number };
   staleDevices: Array<{ id: number; hostname: string; lastSeenUTC: string | null; riskLevel: string }>;
+}
+
+interface ActionItem {
+  id: number; body: string; priority: string | null; dueAtUTC: string | null;
+}
+
+// Self-contained fetch so the summary card grid renders independently.
+function OpenActionItems() {
+  const { data, loading, error, refetch } = useApi<{ data: ActionItem[] }>("/notes/action-items?limit=8");
+  return (
+    <Card>
+      <CardTitle className="mb-3">Open action items</CardTitle>
+      {loading && <Loading />}
+      {error && <ErrorState message={error} onRetry={refetch} />}
+      {data && data.data.length === 0 && (
+        <p className="text-sm text-foreground opacity-80">None — nothing due.</p>
+      )}
+      {data && data.data.length > 0 && (
+        <Table>
+          <thead><tr><Th>Note</Th><Th>Priority</Th><Th>Due</Th></tr></thead>
+          <tbody>
+            {data.data.map((n) => {
+              const overdue = isPastUTC(n.dueAtUTC);
+              return (
+                <tr key={n.id}>
+                  <Td className="max-w-md"><span className="line-clamp-2">{n.body}</span></Td>
+                  <Td><PriorityBadge priority={n.priority} /></Td>
+                  <Td className={overdue ? "text-danger font-medium" : undefined}>
+                    {formatLocal(n.dueAtUTC)}
+                    {overdue && <Badge className="ml-2 border-danger">overdue</Badge>}
+                  </Td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </Table>
+      )}
+      <p className="mt-3">
+        <Link className="text-sm text-primary underline" to="/notes">View all notes →</Link>
+      </p>
+    </Card>
+  );
 }
 
 function Stat({ label, value, accent }: { label: string; value: number | string; accent?: string }) {
@@ -40,6 +82,8 @@ export function Dashboard() {
         <Stat label="IP Addresses" value={data.totals.ipAddresses} />
         <Stat label="High-risk" value={data.highRiskCount} accent={data.highRiskCount ? "text-danger" : ""} />
       </div>
+
+      <OpenActionItems />
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
