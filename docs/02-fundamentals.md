@@ -1,7 +1,17 @@
 # 02 — Network Fundamentals Refresher  🟢
 
+[![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC_BY--NC--SA_4.0-lightgrey.svg)](../LICENSE.md) [![Guide](https://img.shields.io/badge/guide-Home_Network_Security-1f6feb.svg)](../README.md) [![App](https://img.shields.io/badge/app-NetInventory-2ea043.svg)](../app/)
+
 You don't need a CCNA to secure a home network, but a handful of concepts make
 everything else click. Skim this if you already know it.
+
+## Table of contents
+
+- [IP addresses, subnets, CIDR](#ip-addresses-subnets-cidr)
+- [The pieces of a home network](#the-pieces-of-a-home-network)
+- [Key services, in one paragraph each](#key-services-in-one-paragraph-each)
+- [WiFi in 90 seconds](#wifi-in-90-seconds)
+- [A quick map of trust](#a-quick-map-of-trust)
 
 ## IP addresses, subnets, CIDR
 
@@ -24,6 +34,9 @@ is broadcast, `.0` is the network address.
 > NetInventory stores each network as a **subnet** with its CIDR, so you can see how many
 > addresses are used vs free.
 
+
+[↑ Back to top](#table-of-contents)
+
 ## The pieces of a home network
 
 ```mermaid
@@ -41,6 +54,9 @@ firewall, a DHCP server, and a WiFi access point. Prosumer setups split these ap
 (modem → firewall → managed switch → separate APs), which is exactly what lets you
 segment later.
 
+
+[↑ Back to top](#table-of-contents)
+
 ## Key services, in one paragraph each
 
 - **DHCP** hands out IP addresses automatically. Your router keeps a *lease table* — a
@@ -56,6 +72,9 @@ segment later.
 - **MAC address** is the hardware address of a network interface. Useful for identifying
   devices; note that phones randomize MACs by default now.
 
+
+[↑ Back to top](#table-of-contents)
+
 ## WiFi in 90 seconds
 
 - **Bands:** 2.4 GHz (slower, longer range, used by most IoT) and 5/6 GHz (faster,
@@ -64,6 +83,9 @@ segment later.
 - **Encryption:** **WPA3** > **WPA2-AES** > (never) WPA2-TKIP/WEP/Open. Use WPA3 if all
   your gear supports it, else WPA2-AES, optionally a WPA2/WPA3 "transition" mode.
 - **WPS** (the push-button/PIN pairing) is brute-forceable — turn it off.
+
+
+[↑ Back to top](#table-of-contents)
 
 ## A quick map of trust
 
@@ -91,3 +113,9 @@ graph TD
 > zone `trusted`). You'll add more zones in Chapter 05.
 
 ➡️ Next: [03 — Assess your network](03-assess.md)
+
+[↑ Back to top](#table-of-contents)
+
+---
+
+<sub>🔐 Part of the **[Home Network Security guide](../README.md)** · 📦 companion app **[NetInventory](../app/)** · 📄 Licensed under **[CC BY-NC-SA 4.0](../LICENSE.md)** · © 2026</sub>

@@ -1,8 +1,17 @@
 # 00 — Overview & How to Use This Guide  🟢
 
+[![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC_BY--NC--SA_4.0-lightgrey.svg)](../LICENSE.md) [![Guide](https://img.shields.io/badge/guide-Home_Network_Security-1f6feb.svg)](../README.md) [![App](https://img.shields.io/badge/app-NetInventory-2ea043.svg)](../app/)
+
 Securing a network is not a checklist you finish once. It is a **loop** you run on a
 cadence. This guide walks the loop from the ground up, and the companion app
 ([NetInventory](../app/)) is where you record the state of your network as you go.
+
+## Table of contents
+
+- [The loop](#the-loop)
+- [How the difficulty tags work](#how-the-difficulty-tags-work)
+- [How to use NetInventory alongside the guide](#how-to-use-netinventory-alongside-the-guide)
+- [What this guide is *not*](#what-this-guide-is-not)
 
 ## The loop
 
@@ -28,6 +37,9 @@ flowchart LR
 
 Then repeat on a schedule (Chapter 11).
 
+
+[↑ Back to top](#table-of-contents)
+
 ## How the difficulty tags work
 
 | Tag | Meaning | Typical gear |
@@ -39,6 +51,9 @@ Then repeat on a schedule (Chapter 11).
 Do **all** the 🟢 items first. They block the overwhelming majority of real-world
 attacks (botnets, default-credential worms, drive-by IoT compromise). The 🟡 and 🔴
 material is about depth of defense and visibility.
+
+
+[↑ Back to top](#table-of-contents)
 
 ## How to use NetInventory alongside the guide
 
@@ -53,6 +68,9 @@ By the time you finish, NetInventory holds:
 - a running **notes / history** trail per item, and
 - a live **network map** drawn from all of the above.
 
+
+[↑ Back to top](#table-of-contents)
+
 ## What this guide is *not*
 
 - Not a guide to attacking other people's networks. Only test what you own.
@@ -60,3 +78,9 @@ By the time you finish, NetInventory holds:
 - Not product reviews. Where a tool is named, it's an example, not an endorsement.
 
 ➡️ Next: [01 — Threat model](01-threat-model.md)
+
+[↑ Back to top](#table-of-contents)
+
+---
+
+<sub>🔐 Part of the **[Home Network Security guide](../README.md)** · 📦 companion app **[NetInventory](../app/)** · 📄 Licensed under **[CC BY-NC-SA 4.0](../LICENSE.md)** · © 2026</sub>

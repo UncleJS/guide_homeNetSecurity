@@ -1,10 +1,19 @@
 # 03 — Phase 1: Assess Your Network  🟢🟡
 
+[![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC_BY--NC--SA_4.0-lightgrey.svg)](../LICENSE.md) [![Guide](https://img.shields.io/badge/guide-Home_Network_Security-1f6feb.svg)](../README.md) [![App](https://img.shields.io/badge/app-NetInventory-2ea043.svg)](../app/)
+
 > ⚠️ **Only scan networks you own or are authorized to test.** Everything below assumes
 > your own LAN.
 
 Assessment has two halves: **inventory** (what's on my network?) and **exposure** (what
 can the outside world reach?). Both feed directly into NetInventory.
+
+## Table of contents
+
+- [The assessment workflow](#the-assessment-workflow)
+- [Part A — Internal inventory](#part-a--internal-inventory)
+- [Part B — External exposure](#part-b--external-exposure)
+- [What "good" looks like after assessment](#what-good-looks-like-after-assessment)
 
 ## The assessment workflow
 
@@ -31,6 +40,9 @@ flowchart TD
     H --> I
     I --> J(["Proceed to hardening"])
 ```
+
+
+[↑ Back to top](#table-of-contents)
 
 ## Part A — Internal inventory
 
@@ -78,6 +90,9 @@ Anything in your scan you can't explain is the most important finding. Cross-che
 vendor (OUI), unplug-and-rescan to identify a device, or check the AP's client list. An
 unknown device on your WiFi may mean a leaked passphrase.
 
+
+[↑ Back to top](#table-of-contents)
+
 ## Part B — External exposure
 
 This is what attackers actually see. The goal: **zero unsolicited inbound services**.
@@ -122,6 +137,9 @@ In your router:
 > exposed until you've justified and hardened it. The dashboard's "high-risk" count is
 > your punch list.
 
+
+[↑ Back to top](#table-of-contents)
+
 ## What "good" looks like after assessment
 
 - A complete device + IP inventory with no unknowns.
@@ -130,3 +148,9 @@ In your router:
 - Every high-risk item has a note explaining the plan.
 
 ➡️ Next: [04 — Baseline hardening](04-baseline-hardening.md)
+
+[↑ Back to top](#table-of-contents)
+
+---
+
+<sub>🔐 Part of the **[Home Network Security guide](../README.md)** · 📦 companion app **[NetInventory](../app/)** · 📄 Licensed under **[CC BY-NC-SA 4.0](../LICENSE.md)** · © 2026</sub>

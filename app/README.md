@@ -1,5 +1,7 @@
 # NetInventory
 
+[![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC_BY--NC--SA_4.0-lightgrey.svg)](../LICENSE.md) [![Guide](https://img.shields.io/badge/guide-Home_Network_Security-1f6feb.svg)](../README.md) [![Stack](https://img.shields.io/badge/stack-Bun_+_Elysia_+_MariaDB_+_React-2ea043.svg)](#layout) [![Runtime: Podman](https://img.shields.io/badge/runtime-rootless_Podman-892CA0.svg)](../scripts/README.md)
+
 The local-only companion app for the [Home Network Security guide](../README.md).
 Records subnets/VLANs, devices, IP allocations, open ports, a per-device hardening
 checklist, a notes/history trail, and a live interactive **network map**.
@@ -29,9 +31,12 @@ app/
 From the repo root (one level up):
 
 ```sh
-cp .env.example .env        # then edit the passwords
-./install.sh                # builds images, installs Quadlet units, starts the pod
+cp .env.example .env          # then edit the passwords
+scripts/install.sh            # builds images, installs Quadlet units, starts the pod
 ```
+
+Day-to-day lifecycle (start, stop, restart, rebuild, full teardown) lives in
+[`scripts/`](../scripts/README.md).
 
 Open http://localhost:11290.
 
@@ -42,15 +47,16 @@ podman exec -w /workspace/app/api netinventory-dev bun run db:seed
 ```
 
 > **Dev vs prod share the same pod ports (11290/11291).** Never run the dev container
-> and the prod web/api at the same time — they will collide. `install.sh` stops the dev
-> service before starting prod; stop the prod services before doing dev work.
+> and the prod web/api at the same time — they will collide. `scripts/install.sh` (and
+> `scripts/start.sh`/`scripts/restart.sh`) stop the dev service before starting prod; run
+> `scripts/stop.sh` before doing dev work.
 
 ## Development
 
 All commands run **inside the dev container** — never on the host:
 
 ```sh
-./dev.sh                                                              # rebuild the dev image
+scripts/dev.sh                                                        # rebuild the dev image
 podman exec -w /workspace/app/api netinventory-dev bun run db:migrate # create tables (first run)
 podman exec -w /workspace/app/api netinventory-dev bun test           # API unit tests
 podman exec -w /workspace/app/api netinventory-dev bun run db:generate # new migration after schema edits
@@ -63,3 +69,7 @@ podman exec -w /workspace/app/api netinventory-dev bun run db:generate # new mig
 - **UTC everywhere:** datetime columns end in `_UTC`; the UI renders local `yyyy-MM-dd HH:mm:ss`.
 - **DB is pod-internal:** MariaDB's port is never published to the host.
 - **Docs auth in prod:** set `API_DOCS_TOKEN` in `.env` to gate `/docs` and `/openapi.json`.
+
+---
+
+<sub>🔐 Part of the **[Home Network Security guide](../README.md)** · 🛠 lifecycle **[scripts](../scripts/README.md)** · 📄 Licensed under **[CC BY-NC-SA 4.0](../LICENSE.md)** · © 2026</sub>

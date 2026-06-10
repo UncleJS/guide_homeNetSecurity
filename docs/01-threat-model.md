@@ -1,8 +1,17 @@
 # 01 — Threat Model: Who Attacks Home Networks, and Why  🟢
 
+[![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC_BY--NC--SA_4.0-lightgrey.svg)](../LICENSE.md) [![Guide](https://img.shields.io/badge/guide-Home_Network_Security-1f6feb.svg)](../README.md) [![App](https://img.shields.io/badge/app-NetInventory-2ea043.svg)](../app/)
+
 Before you spend a minute hardening, understand what you're defending against. A home
 network is **not** targeted by nation-states — but it is constantly probed by automated,
 opportunistic attacks that don't care who you are. You are a number in a scan range.
+
+## Table of contents
+
+- [The realistic adversaries](#the-realistic-adversaries)
+- [The home attack surface](#the-home-attack-surface)
+- [The three failure modes that cause most home compromises](#the-three-failure-modes-that-cause-most-home-compromises)
+- [Your job: write down *your* threat model](#your-job-write-down-your-threat-model)
 
 ## The realistic adversaries
 
@@ -18,6 +27,9 @@ opportunistic attacks that don't care who you are. You are a number in a scan ra
 
 The common thread: **opportunism and automation**. You don't have to be more secure than
 everyone — just not the low-hanging fruit the scanners grab first.
+
+
+[↑ Back to top](#table-of-contents)
 
 ## The home attack surface
 
@@ -60,6 +72,9 @@ Read the dotted lines carefully — they are the ones people forget:
 - **Reused credentials** let a phished laptop unlock the router admin panel.
   (Fixed in Chapters 04/09.)
 
+
+[↑ Back to top](#table-of-contents)
+
 ## The three failure modes that cause most home compromises
 
 1. **Default / weak credentials** — router admin, IoT devices, NAS accounts.
@@ -69,6 +84,9 @@ Read the dotted lines carefully — they are the ones people forget:
    everything else.
 
 Almost everything in this guide maps back to closing one of these three.
+
+
+[↑ Back to top](#table-of-contents)
 
 ## Your job: write down *your* threat model
 
@@ -83,3 +101,9 @@ You don't need a formal document. Answer three questions and store the answers
 > three answers. Re-read it whenever you add a new device or service.
 
 ➡️ Next: [02 — Network fundamentals](02-fundamentals.md)
+
+[↑ Back to top](#table-of-contents)
+
+---
+
+<sub>🔐 Part of the **[Home Network Security guide](../README.md)** · 📦 companion app **[NetInventory](../app/)** · 📄 Licensed under **[CC BY-NC-SA 4.0](../LICENSE.md)** · © 2026</sub>

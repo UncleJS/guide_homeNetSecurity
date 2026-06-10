@@ -1,7 +1,20 @@
 # 08 — Phase 6: Monitoring & Detection  🔴
 
+[![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC_BY--NC--SA_4.0-lightgrey.svg)](../LICENSE.md) [![Guide](https://img.shields.io/badge/guide-Home_Network_Security-1f6feb.svg)](../README.md) [![App](https://img.shields.io/badge/app-NetInventory-2ea043.svg)](../app/)
+
 Prevention fails eventually. Monitoring is how you find out *before* it becomes a
 headline. This is the most advanced chapter; you can adopt it in layers.
+
+## Table of contents
+
+- [Build a baseline first](#build-a-baseline-first)
+- [The detection pipeline](#the-detection-pipeline)
+- [Layer 1 — Logging (do this first)](#layer-1--logging-do-this-first)
+- [Layer 2 — IDS/IPS with Suricata](#layer-2--idsips-with-suricata)
+- [Layer 3 — Network Security Monitoring with Zeek](#layer-3--network-security-monitoring-with-zeek)
+- [Layer 4 — Flow & visibility](#layer-4--flow--visibility)
+- [Alerting — close the loop](#alerting--close-the-loop)
+- [A realistic home rollout](#a-realistic-home-rollout)
 
 ## Build a baseline first
 
@@ -12,6 +25,9 @@ You can't spot "weird" without knowing "normal." Spend a week observing:
 - When your network is normally quiet (3 a.m. spikes are suspicious).
 
 NetInventory's `last_seen` and notes help you remember what each device *should* be doing.
+
+
+[↑ Back to top](#table-of-contents)
 
 ## The detection pipeline
 
@@ -27,6 +43,9 @@ flowchart LR
     NOTIFY --> IR["Incident response<br/>(Ch.10)"]
 ```
 
+
+[↑ Back to top](#table-of-contents)
+
 ## Layer 1 — Logging (do this first)
 
 - **Centralize logs.** Point your firewall, AP, and DNS resolver at a **syslog**
@@ -36,6 +55,9 @@ flowchart LR
   hundreds of random domains is a classic malware/DGA signal.
 - **Watch firewall denies.** Repeated blocked outbound from an IoT device = that device
   trying to reach something it shouldn't.
+
+
+[↑ Back to top](#table-of-contents)
 
 ## Layer 2 — IDS/IPS with Suricata
 
@@ -49,12 +71,18 @@ signatures.
 - It needs to *see* the traffic: place it where flows cross (the gateway), and remember
   encrypted traffic limits payload inspection — which is why DNS and flow metadata matter.
 
+
+[↑ Back to top](#table-of-contents)
+
 ## Layer 3 — Network Security Monitoring with Zeek
 
 **Zeek** (formerly Bro) doesn't signature-match; it produces rich **structured logs** of
 every connection, DNS query, TLS handshake, file transfer, etc. It's the tool for
 answering "what exactly did this device do?" after an alert. Pair it with Suricata:
 Suricata says "something's wrong," Zeek tells you the full story.
+
+
+[↑ Back to top](#table-of-contents)
 
 ## Layer 4 — Flow & visibility
 
@@ -63,11 +91,17 @@ Suricata says "something's wrong," Zeek tells you the full story.
 - A simple **bandwidth/traffic dashboard** is often enough to notice "why is the camera
   uploading 5 GB to an unknown host?"
 
+
+[↑ Back to top](#table-of-contents)
+
 ## Alerting — close the loop
 
 Detection with no notification is just expensive logging. Wire alerts to something you'll
 actually see: email, a push notification, or a dashboard you check. Tune aggressively —
 an alert channel you ignore because of noise is worse than none.
+
+
+[↑ Back to top](#table-of-contents)
 
 ## A realistic home rollout
 
@@ -82,3 +116,9 @@ an alert channel you ignore because of noise is worse than none.
 > timeline that's gold during response.
 
 ➡️ Next: [09 — Endpoint & supporting hygiene](09-endpoint-hygiene.md)
+
+[↑ Back to top](#table-of-contents)
+
+---
+
+<sub>🔐 Part of the **[Home Network Security guide](../README.md)** · 📦 companion app **[NetInventory](../app/)** · 📄 Licensed under **[CC BY-NC-SA 4.0](../LICENSE.md)** · © 2026</sub>

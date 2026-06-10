@@ -1,8 +1,15 @@
 # 04 — Phase 2: Baseline Hardening  🟢
 
+[![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC_BY--NC--SA_4.0-lightgrey.svg)](../LICENSE.md) [![Guide](https://img.shields.io/badge/guide-Home_Network_Security-1f6feb.svg)](../README.md) [![App](https://img.shields.io/badge/app-NetInventory-2ea043.svg)](../app/)
+
 This chapter is the highest return on effort in the whole guide. None of it requires new
 hardware. Do every item. It closes the three failure modes from Chapter 01 (default
 creds, exposed services, weak WiFi).
+
+## Table of contents
+
+- [The baseline checklist](#the-baseline-checklist)
+- [Verify your work](#verify-your-work)
 
 ## The baseline checklist
 
@@ -82,9 +89,18 @@ most — these devices are the botnet's favorite recruits.
 > controls. Mark each `done` / `pending` / `n/a` as you go. The dashboard shows your
 > overall hardening completion %, so you can see the baseline reach 100%.
 
+
+[↑ Back to top](#table-of-contents)
+
 ## Verify your work
 
 Re-run the **external** checks from Chapter 03 (ShieldsUP! / external nmap). With UPnP off
 and no stale port-forwards, the internet should see **nothing** unsolicited.
 
 ➡️ Next: [05 — Segmentation & VLANs](05-segmentation.md)
+
+[↑ Back to top](#table-of-contents)
+
+---
+
+<sub>🔐 Part of the **[Home Network Security guide](../README.md)** · 📦 companion app **[NetInventory](../app/)** · 📄 Licensed under **[CC BY-NC-SA 4.0](../LICENSE.md)** · © 2026</sub>

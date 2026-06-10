@@ -4,6 +4,29 @@
 !.env.example
 !**/.env.example
 
+# Credentials & secret config — never commit anything holding user/password/keys
+*.secret
+*.secrets
+secrets.*
+**/secrets.*
+*credential*
+*credentials*
+config.local.*
+*.local.json
+!tsconfig*.json
+# Keys, certs, keystores
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+id_rsa
+id_rsa.*
+id_ed25519
+id_ed25519.*
+*.kdbx
+.htpasswd
+
 # Dependencies
 node_modules/
 **/node_modules/

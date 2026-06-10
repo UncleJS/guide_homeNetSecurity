@@ -1,7 +1,16 @@
 # 06 — Phase 4: Network Services (DNS, NTP, mDNS, IPv6)  🟡
 
+[![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC_BY--NC--SA_4.0-lightgrey.svg)](../LICENSE.md) [![Guide](https://img.shields.io/badge/guide-Home_Network_Security-1f6feb.svg)](../README.md) [![App](https://img.shields.io/badge/app-NetInventory-2ea043.svg)](../app/)
+
 These are the plumbing services that run *underneath* everything. Hardening them gives
 you network-wide filtering, privacy, and fewer surprises.
+
+## Table of contents
+
+- [DNS — your cheapest security control](#dns--your-cheapest-security-control)
+- [NTP — get the time right](#ntp--get-the-time-right)
+- [mDNS / casting across VLANs](#mdns--casting-across-vlans)
+- [IPv6 — don't forget it exists](#ipv6--dont-forget-it-exists)
 
 ## DNS — your cheapest security control
 
@@ -43,11 +52,17 @@ firewall, add a rule to **redirect (NAT) all outbound port 53** to your resolver
 **block outbound DoH** to known public resolvers if you want strict control. At minimum,
 block plain `:53` to anything except your resolver.
 
+
+[↑ Back to top](#table-of-contents)
+
 ## NTP — get the time right
 
 Accurate time matters for TLS certificate validation and for **correlating logs** during
 an incident (Chapter 08/10). Let devices use your router/firewall as the NTP source, or a
 reputable pool. Don't expose an open NTP server to the WAN (amplification abuse).
+
+
+[↑ Back to top](#table-of-contents)
 
 ## mDNS / casting across VLANs
 
@@ -57,6 +72,9 @@ link-local and doesn't cross VLANs. Fix it **narrowly**:
 - Enable an **mDNS reflector / Avahi** on the firewall **only between the trusted and IoT
   zones** (not guest), so your phone can discover the TV without flattening the network.
 - Prefer per-service allow rules over "reflect everything."
+
+
+[↑ Back to top](#table-of-contents)
 
 ## IPv6 — don't forget it exists
 
@@ -73,3 +91,9 @@ longer hides them. Two musts:
 > port-53 redirect rule, log it as a `history` note on the firewall device.
 
 ➡️ Next: [07 — Perimeter & remote access](07-perimeter-remote-access.md)
+
+[↑ Back to top](#table-of-contents)
+
+---
+
+<sub>🔐 Part of the **[Home Network Security guide](../README.md)** · 📦 companion app **[NetInventory](../app/)** · 📄 Licensed under **[CC BY-NC-SA 4.0](../LICENSE.md)** · © 2026</sub>

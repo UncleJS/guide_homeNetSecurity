@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# NetInventory — rebuild the dev image and (re)start the dev container.
+# Dev and prod share the pod ports (11290/11291) — stop prod before doing dev work.
 PROJECT_NAME="netinventory"
-REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_DIR"
 
 # Guard 1: repo-local .env must exist
@@ -21,5 +23,5 @@ fi
 
 podman build -f Containerfile.dev -t "${PROJECT_NAME}-dev:latest" .
 systemctl --user restart "${PROJECT_NAME}-dev" 2>/dev/null || \
-  echo "Dev unit not installed yet — run ./install.sh first."
+  echo "Dev unit not installed yet — run scripts/install.sh first."
 echo "Dev container image rebuilt."

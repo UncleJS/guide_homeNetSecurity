@@ -1,5 +1,7 @@
 # Home Network Security — Assess & Harden (Beginner → Advanced)
 
+[![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC_BY--NC--SA_4.0-lightgrey.svg)](LICENSE.md) [![Guide](https://img.shields.io/badge/guide-12_chapters-1f6feb.svg)](#read-in-order) [![App: NetInventory](https://img.shields.io/badge/app-NetInventory-2ea043.svg)](app/) [![Stack](https://img.shields.io/badge/stack-Bun_+_Elysia_+_MariaDB_+_React-555.svg)](app/) [![Runtime: Podman](https://img.shields.io/badge/runtime-rootless_Podman-892CA0.svg)](scripts/README.md)
+
 A practical, vendor-neutral guide to **assessing and hardening a home / prosumer network**
 against modern threats — plus a self-hosted companion web app, **NetInventory**, to record
 your IP addresses, devices, subnets/VLANs, hardening status, and a live network map.
@@ -8,6 +10,14 @@ your IP addresses, devices, subnets/VLANs, hardening status, and a live network 
 > You can't defend what you can't see — so everything starts with an inventory.
 
 ---
+
+## Table of contents
+
+- [Who this is for](#who-this-is-for)
+- [The core loop](#the-core-loop)
+- [Read in order](#read-in-order)
+- [The companion app — NetInventory](#the-companion-app--netinventory)
+- [A note on scope & ethics](#a-note-on-scope--ethics)
 
 ## Who this is for
 
@@ -20,6 +30,9 @@ difficulty so you can stop wherever your setup and appetite end:
 - 🔴 **Advanced** — running your own IDS/IPS, logging, and detection.
 
 ---
+
+
+[↑ Back to top](#table-of-contents)
 
 ## The core loop
 
@@ -35,6 +48,9 @@ flowchart LR
 ```
 
 ---
+
+
+[↑ Back to top](#table-of-contents)
 
 ## Read in order
 
@@ -55,6 +71,9 @@ flowchart LR
 
 ---
 
+
+[↑ Back to top](#table-of-contents)
+
 ## The companion app — NetInventory
 
 A local-only inventory + hardening tracker with a live, interactive network map.
@@ -64,8 +83,14 @@ It runs in a rootless Podman pod on your own hardware — nothing leaves your ne
 - **API + Swagger docs:** http://localhost:11291/docs
 - **Stack:** Bun + Elysia + MariaDB/Drizzle + React/Vite/shadcn (high-contrast dark)
 
-See [`app/`](app/) for the application and [`deploy/`](deploy/) for the Podman/systemd
-(Quadlet) units. Setup instructions live in [`app/README.md`](app/README.md).
+See [`app/`](app/) for the application, [`.quadlet/`](.quadlet/) for the Podman/systemd
+(Quadlet) units, and [`scripts/`](scripts/README.md) for the install / start / stop /
+restart / rebuild / teardown lifecycle. App setup lives in [`app/README.md`](app/README.md).
+
+```sh
+cp .env.example .env     # set your passwords
+scripts/install.sh       # build images, install Quadlet units, start the pod
+```
 
 ```mermaid
 graph TD
@@ -81,8 +106,17 @@ graph TD
 
 ---
 
+
+[↑ Back to top](#table-of-contents)
+
 ## A note on scope & ethics
 
 Every assessment technique here is meant for **networks you own or are explicitly
 authorized to test**. Scanning, probing, or de-authing networks you don't control is
 illegal in most places. Keep it to your own LAN.
+
+[↑ Back to top](#table-of-contents)
+
+---
+
+<sub>🔐 **Home Network Security — Assess & Harden** · 📦 companion app **[NetInventory](app/)** · 🛠 lifecycle **[scripts](scripts/README.md)** · 📄 Licensed under **[CC BY-NC-SA 4.0](LICENSE.md)** · © 2026</sub>

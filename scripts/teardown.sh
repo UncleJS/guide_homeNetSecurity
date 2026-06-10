@@ -1,8 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# NetInventory — project-scoped teardown (rootless Podman). NEVER prunes.
-# Pass --purge-volumes to also delete the database volume (DESTRUCTIVE).
+# NetInventory — project-scoped FULL teardown (rootless Podman). NEVER prunes.
+# Removes this project's units, containers, images, and Quadlet files.
+# Pass --purge-volumes to ALSO delete the database volume (DESTRUCTIVE, irreversible).
+#
+# Usage:
+#   scripts/teardown.sh                  # remove units/containers/images, KEEP data
+#   scripts/teardown.sh --purge-volumes  # also delete the MariaDB named volume
 PURGE=0
 [[ "${1:-}" == "--purge-volumes" ]] && PURGE=1
 
@@ -17,7 +22,7 @@ PROJECT_UNITS=(
 )
 PROJECT_POD="netinventory"
 PROJECT_CONTAINERS=(netinventory-web netinventory-api netinventory-dev netinventory-mariadb)
-PROJECT_IMAGES=(localhost/netinventory-api:latest localhost/netinventory-web:latest localhost/netinventory-dev:latest)
+PROJECT_IMAGES=(localhost/netinventory-api:latest localhost/netinventory-web:latest localhost/netinventory-dev:latest netinventory-dev:latest)
 # List both Quadlet and systemd- prefixed variants.
 PROJECT_VOLUMES=(netinventory-db netinventory-dev systemd-netinventory-db systemd-netinventory-dev)
 

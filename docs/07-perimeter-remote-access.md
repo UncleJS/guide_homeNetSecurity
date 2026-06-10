@@ -1,7 +1,18 @@
 # 07 — Phase 5: Perimeter & Remote Access  🟡🔴
 
+[![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC_BY--NC--SA_4.0-lightgrey.svg)](../LICENSE.md) [![Guide](https://img.shields.io/badge/guide-Home_Network_Security-1f6feb.svg)](../README.md) [![App](https://img.shields.io/badge/app-NetInventory-2ea043.svg)](../app/)
+
 The perimeter is where the internet meets your network. The two big wins here are a
 **default-deny firewall** and **never exposing services directly** — use a VPN instead.
+
+## Table of contents
+
+- [Upgrade the perimeter: a real firewall](#upgrade-the-perimeter-a-real-firewall)
+- [The port-forward trap](#the-port-forward-trap)
+- [The right way in: WireGuard](#the-right-way-in-wireguard)
+- [Dynamic DNS, safely](#dynamic-dns-safely)
+- [UPnP, one more time](#upnp-one-more-time)
+- [Outbound matters too (egress filtering) 🔴](#outbound-matters-too-egress-filtering-)
 
 ## Upgrade the perimeter: a real firewall
 
@@ -13,6 +24,9 @@ already have one.
 Core posture, restated: **default-deny inbound on WAN (IPv4 and IPv6)**. Nothing reaches
 in unless you deliberately allow it — and the right way to "allow in" is a VPN, not a
 port-forward.
+
+
+[↑ Back to top](#table-of-contents)
 
 ## The port-forward trap
 
@@ -32,6 +46,9 @@ graph LR
     end
 ```
 
+
+[↑ Back to top](#table-of-contents)
+
 ## The right way in: WireGuard
 
 Instead of exposing services, expose **one** cryptographically authenticated VPN endpoint
@@ -47,11 +64,17 @@ and reach everything through it.
 > Per house rules: keep remote access **self-hosted on your own endpoint**. Avoid public
 > tunneling services that expose internal apps to third-party infrastructure.
 
+
+[↑ Back to top](#table-of-contents)
+
 ## Dynamic DNS, safely
 
 Most home IPs are dynamic, so to reach your VPN endpoint by name you'll use Dynamic DNS
 (DDNS). That's fine — it only resolves to your IP; it doesn't open anything. Keep the
 default-deny posture; only the VPN port is open.
+
+
+[↑ Back to top](#table-of-contents)
 
 ## UPnP, one more time
 
@@ -59,6 +82,9 @@ If you didn't already: **disable UPnP**. It exists specifically to let applicati
 inbound ports without your involvement — the opposite of default-deny. The rare exception
 (some game consoles/voice chat) can be handled with explicit, narrow port-forwards or by
 accepting slightly stricter NAT.
+
+
+[↑ Back to top](#table-of-contents)
 
 ## Outbound matters too (egress filtering) 🔴
 
@@ -72,3 +98,9 @@ everything except a known mail host to avoid your network becoming a spam relay.
 > (Chapter 03 external scan) that **only** the VPN port answers.
 
 ➡️ Next: [08 — Monitoring & detection](08-monitoring-detection.md)
+
+[↑ Back to top](#table-of-contents)
+
+---
+
+<sub>🔐 Part of the **[Home Network Security guide](../README.md)** · 📦 companion app **[NetInventory](../app/)** · 📄 Licensed under **[CC BY-NC-SA 4.0](../LICENSE.md)** · © 2026</sub>

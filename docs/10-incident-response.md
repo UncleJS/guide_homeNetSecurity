@@ -1,7 +1,19 @@
 # 10 — Phase 8: Incident Response for the Home  🔴
 
+[![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC_BY--NC--SA_4.0-lightgrey.svg)](../LICENSE.md) [![Guide](https://img.shields.io/badge/guide-Home_Network_Security-1f6feb.svg)](../README.md) [![App](https://img.shields.io/badge/app-NetInventory-2ea043.svg)](../app/)
+
 Something looks wrong — a device you don't recognize, a ransom note, your camera
 uploading gigabytes at 3 a.m. Panic makes it worse. Work the loop calmly.
+
+## Table of contents
+
+- [The IR loop](#the-ir-loop)
+- [1. Detect / confirm](#1-detect--confirm)
+- [2. Contain — stop the spread](#2-contain--stop-the-spread)
+- [3. Eradicate — remove the cause](#3-eradicate--remove-the-cause)
+- [4. Recover — restore safely](#4-recover--restore-safely)
+- [5. Learn — close the loop](#5-learn--close-the-loop)
+- [A pre-built "go bag"](#a-pre-built-go-bag)
 
 ## The IR loop
 
@@ -15,6 +27,9 @@ flowchart TD
     F -.->|"feeds back into the loop"| A
 ```
 
+
+[↑ Back to top](#table-of-contents)
+
 ## 1. Detect / confirm
 
 Signals: an unknown device on the network, an antivirus/IDS alert, files renamed/encrypted,
@@ -23,6 +38,9 @@ DNS log full of random domains.
 
 Confirm before you nuke things — but **don't wait for certainty if data is actively being
 encrypted**. When in doubt, contain.
+
+
+[↑ Back to top](#table-of-contents)
 
 ## 2. Contain — stop the spread
 
@@ -38,6 +56,9 @@ Goal: cut the attacker's reach without destroying evidence you may need.
 - **Preserve evidence** if you care to investigate: photograph the screen, note times,
   export relevant logs from your syslog/Zeek (Chapter 08) before they roll off.
 
+
+[↑ Back to top](#table-of-contents)
+
 ## 3. Eradicate — remove the cause
 
 - **Don't trust a compromised device.** For a seriously compromised PC, the reliable move
@@ -50,12 +71,18 @@ Goal: cut the attacker's reach without destroying evidence you may need.
 - **Check for persistence:** new accounts, changed DNS settings on the router, rogue
   port-forwards/UPnP entries, scheduled tasks, new firewall rules.
 
+
+[↑ Back to top](#table-of-contents)
+
 ## 4. Recover — restore safely
 
 - Restore data from a **known-clean backup** (Chapter 09's offline/immutable copy). Verify
   the backup predates the compromise.
 - Bring devices back **one at a time**, watching your monitoring for recurrence.
 - Reset MFA and re-enroll if account compromise is suspected.
+
+
+[↑ Back to top](#table-of-contents)
 
 ## 5. Learn — close the loop
 
@@ -65,6 +92,9 @@ update your defenses so the same path can't be reused:
 - Patch/replace what was exploited.
 - Tighten the segmentation or firewall rule that allowed lateral movement.
 - Add a detection rule so you'd catch it faster next time.
+
+
+[↑ Back to top](#table-of-contents)
 
 ## A pre-built "go bag"
 
@@ -81,3 +111,9 @@ Prepare these *before* an incident, while you're calm:
 > assessment cycle (Chapter 11), verify those fixes held.
 
 ➡️ Next: [11 — Ongoing cadence & checklists](11-ongoing-cadence.md)
+
+[↑ Back to top](#table-of-contents)
+
+---
+
+<sub>🔐 Part of the **[Home Network Security guide](../README.md)** · 📦 companion app **[NetInventory](../app/)** · 📄 Licensed under **[CC BY-NC-SA 4.0](../LICENSE.md)** · © 2026</sub>

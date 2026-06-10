@@ -3,7 +3,7 @@ set -euo pipefail
 
 # NetInventory — build production images and install Quadlet units (rootless Podman).
 PROJECT_NAME="netinventory"
-REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 QUADLET_DST="${HOME}/.config/containers/systemd"
 cd "$REPO_DIR"
 
