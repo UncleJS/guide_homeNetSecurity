@@ -2,6 +2,7 @@
 FROM registry.access.redhat.com/ubi10/ubi-minimal
 
 RUN microdnf install -y curl tar gzip git unzip && \
+    (microdnf install -y nmap || echo "WARN: nmap not available in UBI repos — scheduled scans will fail gracefully in dev") && \
     curl -fsSL https://bun.sh/install | bash && \
     microdnf clean all
 ENV PATH="/root/.bun/bin:$PATH"

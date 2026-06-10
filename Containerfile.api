@@ -2,6 +2,10 @@
 FROM docker.io/oven/bun:1
 WORKDIR /app
 
+# nmap for scheduled scans (rootless pod = no CAP_NET_RAW, so only -sT connect scans).
+RUN apt-get update && apt-get install -y --no-install-recommends nmap && \
+    rm -rf /var/lib/apt/lists/*
+
 # Bun workspace rooted at app/
 COPY app/ ./
 # Reproducible install — bun.lock is committed; fail loudly if it is missing/stale.

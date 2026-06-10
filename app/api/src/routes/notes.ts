@@ -1,7 +1,7 @@
 import { Elysia, t } from "elysia";
 import { and, eq, isNull, desc } from "drizzle-orm";
 import { db } from "../db/client.ts";
-import { notes, subnets, devices, ipAddresses, NOTE_CATEGORIES, NOTE_ENTITIES } from "../db/schema.ts";
+import { notes, subnets, devices, ipAddresses, scanRuns, NOTE_CATEGORIES, NOTE_ENTITIES } from "../db/schema.ts";
 import { touch, archiveMark, restoreMark, paginate, affected } from "../lib/util.ts";
 
 const NoteBody = t.Object({
@@ -29,6 +29,11 @@ async function entityExists(entityType: (typeof NOTE_ENTITIES)[number], entityId
     case "ip_address": {
       const [row] = await db.select({ id: ipAddresses.id }).from(ipAddresses)
         .where(and(eq(ipAddresses.id, entityId), isNull(ipAddresses.archivedAtUTC)));
+      return Boolean(row);
+    }
+    case "scan_run": {
+      const [row] = await db.select({ id: scanRuns.id }).from(scanRuns)
+        .where(and(eq(scanRuns.id, entityId), isNull(scanRuns.archivedAtUTC)));
       return Boolean(row);
     }
   }

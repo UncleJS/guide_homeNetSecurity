@@ -259,6 +259,139 @@ describe("topology links", () => {
   });
 });
 
+describe("scan schedules", () => {
+  let subnetId: number;
+  let scheduleId: number;
+  const future = new Date(Date.now() + 7 * 86_400_000).toISOString();
+
+  it("creates a weekly subnet schedule", async () => {
+    const s = await call("POST", "/subnets", { name: "Scan test net", cidr: "10.95.0.0/24" });
+    subnetId = s.body.id;
+    const r = await call("POST", "/schedules", {
+      name: "Weekly test sweep", targetType: "subnet", subnetId,
+      recurrence: "weekly", nextRunAtUTC: future,
+      reminderMinutesBefore: 30, reminderEmail: "ops@example.com",
+    });
+    expect(r.status).toBe(200);
+    scheduleId = r.body.id;
+    expect(r.body.portSpec).toBe("top100");
+    expect(r.body.enabled).toBe(1);
+  });
+
+  it("409s a duplicate active name", async () => {
+    const r = await call("POST", "/schedules", {
+      name: "Weekly test sweep", targetType: "subnet", subnetId, nextRunAtUTC: future,
+    });
+    expect(r.status).toBe(409);
+  });
+
+  it("422s mismatched target fields", async () => {
+    expect((await call("POST", "/schedules", {
+      name: "Bad target", targetType: "subnet", deviceId: 1, nextRunAtUTC: future,
+    })).status).toBe(422);
+    expect((await call("POST", "/schedules", {
+      name: "Bad target", targetType: "device", nextRunAtUTC: future,
+    })).status).toBe(422);
+    expect((await call("POST", "/schedules", {
+      name: "Bad ports", targetType: "subnet", subnetId, nextRunAtUTC: future, portSpec: "1;rm",
+    })).status).toBe(422);
+  });
+
+  it("lists with the envelope and last-run fields", async () => {
+    const r = await call("GET", "/schedules");
+    ENVELOPE(r);
+    const row = r.body.data.find((x: { id: number }) => x.id === scheduleId);
+    expect(row.lastRunStatus).toBeNull();
+  });
+
+  it("patches and resets the reminder marker on reschedule", async () => {
+    const r = await call("PATCH", `/schedules/${scheduleId}`, {
+      nextRunAtUTC: new Date(Date.now() + 14 * 86_400_000).toISOString(),
+    });
+    expect(r.status).toBe(200);
+    expect(r.body.reminderSentForUTC).toBeNull();
+  });
+
+  it("serves the calendar feed with computed occurrences", async () => {
+    const from = new Date(Date.now() - 86_400_000).toISOString();
+    const to = new Date(Date.now() + 30 * 86_400_000).toISOString();
+    const r = await call("GET", `/schedules/calendar?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
+    expect(r.status).toBe(200);
+    expect(Array.isArray(r.body.runs)).toBe(true);
+    expect(r.body.occurrences.filter((o: { scheduleId: number }) => o.scheduleId === scheduleId).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("422s an oversized or inverted calendar range", async () => {
+    const from = new Date().toISOString();
+    const farOut = new Date(Date.now() + 90 * 86_400_000).toISOString();
+    expect((await call("GET", `/schedules/calendar?from=${encodeURIComponent(from)}&to=${encodeURIComponent(farOut)}`)).status).toBe(422);
+    expect((await call("GET", `/schedules/calendar?from=${encodeURIComponent(farOut)}&to=${encodeURIComponent(from)}`)).status).toBe(422);
+  });
+
+  it("archives and restores", async () => {
+    expect((await call("POST", `/schedules/${scheduleId}/archive`)).status).toBe(200);
+    expect((await call("GET", `/schedules/${scheduleId}`)).status).toBe(404);
+    expect((await call("POST", `/schedules/${scheduleId}/restore`)).status).toBe(200);
+    expect((await call("GET", `/schedules/${scheduleId}`)).status).toBe(200);
+  });
+
+  it("503s the test email when SMTP is unconfigured", async () => {
+    delete process.env.SMTP_HOST;
+    const r = await call("POST", "/schedules/test-email", { to: "ops@example.com" });
+    expect(r.status).toBe(503);
+  });
+});
+
+describe("scan runs (run-now without nmap dependency)", () => {
+  let runId: number;
+
+  it("run-now on a device with no IPs produces a failed run with a clear error", async () => {
+    const d = await call("POST", "/devices", { hostname: "scanless-host" });
+    const s = await call("POST", "/schedules", {
+      name: "Device run-now test", targetType: "device", deviceId: d.body.id,
+      nextRunAtUTC: new Date(Date.now() + 86_400_000).toISOString(),
+    });
+    expect(s.status).toBe(200);
+    const r = await call("POST", `/schedules/${s.body.id}/run-now`, {});
+    expect(r.status).toBe(200);
+    runId = r.body.id;
+    // The scan fails fast (no IPs) in the background — poll until it settles.
+    let run = r.body;
+    for (let i = 0; i < 20 && run.status === "running"; i++) {
+      await Bun.sleep(100);
+      run = (await call("GET", `/scan-runs/${runId}`)).body;
+    }
+    expect(run.status).toBe("failed");
+    expect(run.error).toContain("no active IP addresses");
+    expect(Array.isArray(run.findings)).toBe(true);
+  });
+
+  it("lists runs with the envelope and schedule name", async () => {
+    const r = await call("GET", "/scan-runs");
+    ENVELOPE(r);
+    expect(r.body.data.find((x: { id: number }) => x.id === runId)?.scheduleName).toBe("Device run-now test");
+  });
+
+  it("404s a findings PATCH for a nonexistent finding", async () => {
+    const r = await call("PATCH", `/scan-runs/${runId}/findings/999999`, { notes: "x" });
+    expect(r.status).toBe(404);
+  });
+
+  it("accepts a detailed note attached to the run (scan_run entity)", async () => {
+    const r = await call("POST", "/notes", { entityType: "scan_run", entityId: runId, body: "Analyst write-up" });
+    expect(r.status).toBe(200);
+    const list = await call("GET", `/notes?entityType=scan_run&entityId=${runId}`);
+    expect(list.body.data.some((n: { body: string }) => n.body === "Analyst write-up")).toBe(true);
+  });
+
+  it("archives and restores a run", async () => {
+    expect((await call("POST", `/scan-runs/${runId}/archive`)).status).toBe(200);
+    expect((await call("GET", `/scan-runs/${runId}`)).status).toBe(404);
+    expect((await call("POST", `/scan-runs/${runId}/restore`)).status).toBe(200);
+    expect((await call("GET", `/scan-runs/${runId}`)).status).toBe(200);
+  });
+});
+
 describe("notes (polymorphic target must exist)", () => {
   let deviceId: number;
   let noteId: number;

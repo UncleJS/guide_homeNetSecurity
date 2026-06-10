@@ -18,10 +18,10 @@ const CAT_CLASS: Record<string, string> = {
   general: "border-border",
 };
 
-// Reusable history/reference trail for any entity (subnet | device | ip_address).
+// Reusable history/reference trail for any entity (subnet | device | ip_address | scan_run).
 export function NotesPanel({
   entityType, entityId,
-}: { entityType: "subnet" | "device" | "ip_address"; entityId: number }) {
+}: { entityType: "subnet" | "device" | "ip_address" | "scan_run"; entityId: number }) {
   const path = `/notes?entityType=${entityType}&entityId=${entityId}&pageSize=200`;
   const { data, loading, error, refetch } = useApi<{ data: Note[] }>(path);
   const notes = data?.data ?? null;

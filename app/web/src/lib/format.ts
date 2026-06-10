@@ -40,6 +40,13 @@ export function localToISO(local: string): string | null {
   return d.toISOString();
 }
 
+// Local calendar-day key ("yyyy-MM-dd") for a server UTC datetime — used to
+// bucket events into day cells of the month calendar.
+export function localDateKey(value: string | Date): string {
+  const d = parseServerUTC(value);
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
 // Convert an ISO/UTC value back to local "yyyy-MM-dd HH:mm:ss" for editing.
 export function isoToLocalInput(value: string | null | undefined): string {
   if (!value) return "";

@@ -27,8 +27,12 @@ export const RISK_LEVELS = ["low", "medium", "high", "critical"] as const;
 export const ASSIGNMENT_TYPES = ["static", "dhcp", "reserved"] as const;
 export const HARDENING_STATES = ["pending", "done", "na"] as const;
 export const NOTE_CATEGORIES = ["history", "reference", "general"] as const;
-export const NOTE_ENTITIES = ["subnet", "device", "ip_address"] as const;
+// scan_run appended last — MariaDB ENUM extension must be append-only.
+export const NOTE_ENTITIES = ["subnet", "device", "ip_address", "scan_run"] as const;
 export const LINK_TYPES = ["uplink", "wireless", "trunk", "logical"] as const;
+export const SCAN_RECURRENCES = ["once", "daily", "weekly", "monthly", "quarterly"] as const;
+export const SCAN_TARGET_TYPES = ["subnet", "device"] as const;
+export const SCAN_RUN_STATUSES = ["running", "completed", "failed"] as const;
 
 // Subnets / VLANs ------------------------------------------------------------
 export const subnets = mysqlTable("subnets", {
@@ -161,6 +165,78 @@ export const notes = mysqlTable("notes", {
   ...lifecycle,
 }, (t) => ({
   entityIx: index("ix_notes_entity").on(t.entityType, t.entityId),
+}));
+
+// Scan schedules (planned nmap scans; the scheduler executes these) ----------
+export const scanSchedules = mysqlTable("scan_schedules", {
+  id: bigint("id", { mode: "number", unsigned: true })
+    .primaryKey()
+    .autoincrement(),
+  name: varchar("name", { length: 120 }).notNull(),
+  targetType: mysqlEnum("target_type", SCAN_TARGET_TYPES).notNull(),
+  subnetId: bigint("subnet_id", { mode: "number", unsigned: true })
+    .references(() => subnets.id),
+  deviceId: bigint("device_id", { mode: "number", unsigned: true })
+    .references(() => devices.id),
+  // "top100" | "top1000" | nmap -p spec ("1-1024", "22,80,443")
+  portSpec: varchar("port_spec", { length: 255 }).notNull().default("top100"),
+  recurrence: mysqlEnum("recurrence", SCAN_RECURRENCES).notNull().default("once"),
+  nextRunAtUTC: datetime("next_run_at_UTC").notNull(),
+  enabled: int("enabled").notNull().default(1), // 0/1
+  reminderMinutesBefore: int("reminder_minutes_before"), // null = reminders off
+  reminderEmail: varchar("reminder_email", { length: 255 }),
+  // Which occurrence (next_run_at_UTC value) was already reminded — survives restarts.
+  reminderSentForUTC: datetime("reminder_sent_for_UTC"),
+  description: text("description"),
+  ...lifecycle,
+  nameActive: varchar("name_active", { length: 120 }).generatedAlwaysAs(
+    sql`(case when archived_at_UTC is null then name else null end)`,
+    { mode: "virtual" },
+  ),
+}, (t) => ({
+  nameActiveUk: uniqueIndex("uk_scan_schedules_name_active").on(t.nameActive),
+  nextRunIx: index("ix_scan_schedules_next_run").on(t.nextRunAtUTC),
+}));
+
+// Scan runs (one row per executed occurrence) ---------------------------------
+export const scanRuns = mysqlTable("scan_runs", {
+  id: bigint("id", { mode: "number", unsigned: true })
+    .primaryKey()
+    .autoincrement(),
+  scheduleId: bigint("schedule_id", { mode: "number", unsigned: true })
+    .notNull()
+    .references(() => scanSchedules.id),
+  scheduledForUTC: datetime("scheduled_for_UTC").notNull(),
+  startedAtUTC: datetime("started_at_UTC"),
+  finishedAtUTC: datetime("finished_at_UTC"),
+  status: mysqlEnum("status", SCAN_RUN_STATUSES).notNull().default("running"),
+  hostsScanned: int("hosts_scanned").notNull().default(0),
+  openPorts: int("open_ports").notNull().default(0),
+  error: text("error"),
+  ...lifecycle,
+}, (t) => ({
+  scheduleIx: index("ix_scan_runs_schedule").on(t.scheduleId),
+  scheduledForIx: index("ix_scan_runs_scheduled_for").on(t.scheduledForUTC),
+}));
+
+// Scan findings (open ports discovered by a run) -------------------------------
+export const scanFindings = mysqlTable("scan_findings", {
+  id: bigint("id", { mode: "number", unsigned: true })
+    .primaryKey()
+    .autoincrement(),
+  runId: bigint("run_id", { mode: "number", unsigned: true })
+    .notNull()
+    .references(() => scanRuns.id),
+  ipAddress: varchar("ip_address", { length: 45 }).notNull(),
+  hostname: varchar("hostname", { length: 255 }),
+  port: int("port").notNull(),
+  protocol: varchar("protocol", { length: 8 }).notNull().default("tcp"),
+  state: varchar("state", { length: 20 }).notNull(),
+  service: varchar("service", { length: 80 }),
+  notes: text("notes"), // per-finding analyst annotation
+  ...lifecycle,
+}, (t) => ({
+  runIx: index("ix_scan_findings_run").on(t.runId),
 }));
 
 // Topology links (explicit device -> device uplinks) -------------------------

@@ -10,6 +10,8 @@ import { noteRoutes } from "./routes/notes.ts";
 import { linkRoutes } from "./routes/links.ts";
 import { mapRoutes } from "./routes/map.ts";
 import { dashboardRoutes } from "./routes/dashboard.ts";
+import { scheduleRoutes } from "./routes/schedules.ts";
+import { scanRunRoutes } from "./routes/scanRuns.ts";
 
 const CORS_ORIGIN = (process.env.API_CORS_ORIGIN ?? "http://localhost:11290").split(",");
 const DOCS_TOKEN = process.env.API_DOCS_TOKEN ?? "";
@@ -55,6 +57,7 @@ export const app = new Elysia()
           { name: "Subnets" }, { name: "Devices" }, { name: "IP Addresses" },
           { name: "Device Ports" }, { name: "Hardening" }, { name: "Notes" },
           { name: "Topology Links" }, { name: "Network Map" }, { name: "Dashboard" },
+          { name: "Scan Schedules" }, { name: "Scan Runs" },
         ],
       },
     }),
@@ -74,7 +77,9 @@ export const app = new Elysia()
       .use(noteRoutes)
       .use(linkRoutes)
       .use(mapRoutes)
-      .use(dashboardRoutes),
+      .use(dashboardRoutes)
+      .use(scheduleRoutes)
+      .use(scanRunRoutes),
   );
 
 export type App = typeof app;

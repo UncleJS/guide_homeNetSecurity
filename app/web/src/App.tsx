@@ -6,6 +6,10 @@ import { Devices } from "./pages/Devices.tsx";
 import { DeviceDetail } from "./pages/DeviceDetail.tsx";
 import { IpAddresses } from "./pages/IpAddresses.tsx";
 import { NetworkMap } from "./pages/NetworkMap.tsx";
+import { Schedules } from "./pages/Schedules.tsx";
+import { ScheduleDetail } from "./pages/ScheduleDetail.tsx";
+import { ScanRunDetail } from "./pages/ScanRunDetail.tsx";
+import { Calendar } from "./pages/Calendar.tsx";
 
 export function App() {
   return (
@@ -18,6 +22,10 @@ export function App() {
           <Route path="devices/:id" element={<DeviceDetail />} />
           <Route path="ips" element={<IpAddresses />} />
           <Route path="map" element={<NetworkMap />} />
+          <Route path="schedules" element={<Schedules />} />
+          <Route path="schedules/:id" element={<ScheduleDetail />} />
+          <Route path="runs/:id" element={<ScanRunDetail />} />
+          <Route path="calendar" element={<Calendar />} />
         </Route>
       </Routes>
     </BrowserRouter>
