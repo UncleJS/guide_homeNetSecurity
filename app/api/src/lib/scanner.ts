@@ -32,6 +32,10 @@ export function buildPortArgs(spec: string): string[] {
 export function buildNmapArgs(targets: string[], portSpec: string, singleHost: boolean): string[] {
   return [
     "-sT",
+    // Containers run as uid 0 without CAP_NET_RAW, so nmap would assume it is
+    // privileged and intermittently abort on raw-ethernet setup
+    // ("dnet: Failed to open device ..."). Declare unprivileged explicitly.
+    "--unprivileged",
     "-T4",
     "--host-timeout", "90s",
     ...buildPortArgs(portSpec),
@@ -47,19 +51,25 @@ export function buildNmapArgs(targets: string[], portSpec: string, singleHost: b
 //   Host: 192.168.1.10 (nas.lan)\tPorts: 22/open/tcp//ssh///, 443/open/tcp//https///\t...
 export function parseGrepable(stdout: string): ScanResult {
   const findings: ScanFinding[] = [];
-  let hostsUp = 0;
+  // A host scanned via duplicate targets repeats its Status/Ports lines, so
+  // count distinct up IPs and skip findings already seen.
+  const upIps = new Set<string>();
+  const seen = new Set<string>();
   for (const line of stdout.split("\n")) {
     if (!line.startsWith("Host:")) continue;
-    if (/\bStatus: Up\b/.test(line)) hostsUp++;
     const head = line.match(/^Host:\s+(\S+)\s+\(([^)]*)\)/);
     if (!head) continue;
     const ipAddress = head[1];
     const hostname = head[2] || null;
+    if (/\bStatus: Up\b/.test(line)) upIps.add(ipAddress);
     const portsSeg = line.match(/\tPorts:\s+([^\t]+)/);
     if (!portsSeg) continue;
     for (const entry of portsSeg[1].split(", ")) {
       const [port, state, protocol, , service] = entry.split("/");
       if (state !== "open") continue;
+      const key = `${ipAddress}/${port}/${protocol || "tcp"}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
       findings.push({
         ipAddress,
         hostname,
@@ -70,7 +80,7 @@ export function parseGrepable(stdout: string): ScanResult {
       });
     }
   }
-  return { hostsUp, findings };
+  return { hostsUp: upIps.size, findings };
 }
 
 export async function runNmap(args: string[], timeoutMs?: number): Promise<string> {

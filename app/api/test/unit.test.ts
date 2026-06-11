@@ -4,6 +4,7 @@ import { paginate } from "../src/lib/util.ts";
 import { DEFAULT_HARDENING_CONTROLS } from "../src/lib/hardening.ts";
 import { buildPortArgs, buildNmapArgs, isValidPortSpec, parseGrepable } from "../src/lib/scanner.ts";
 import { advance } from "../src/lib/scheduler.ts";
+import { ipv4InCidr } from "../src/lib/net.ts";
 
 describe("ipv4Capacity", () => {
   it("computes usable hosts for common prefixes", () => {
@@ -76,6 +77,11 @@ describe("port specs", () => {
     expect(buildNmapArgs(["192.168.1.5"], "top100", true)).toContain("-Pn");
     expect(buildNmapArgs(["192.168.1.0/24"], "top100", false)).not.toContain("-Pn");
   });
+
+  it("always declares unprivileged mode (rootless pod has no CAP_NET_RAW)", () => {
+    expect(buildNmapArgs(["192.168.1.5"], "top100", true)).toContain("--unprivileged");
+    expect(buildNmapArgs(["192.168.1.0/24"], "top100", false)).toContain("--unprivileged");
+  });
 });
 
 describe("parseGrepable", () => {
@@ -98,5 +104,43 @@ describe("parseGrepable", () => {
 
   it("returns empty for output with no port lines", () => {
     expect(parseGrepable("# Nmap done: 0 hosts up")).toEqual({ hostsUp: 0, findings: [] });
+  });
+
+  it("dedupes a host scanned via duplicate targets", () => {
+    // Same address allocated twice -> nmap scans the host once per target and
+    // repeats its Status/Ports lines verbatim.
+    const dup = [
+      "Host: 192.168.10.41 (cent01w)\tStatus: Up",
+      "Host: 192.168.10.41 (cent01w)\tPorts: 3306/open/tcp//mysql///, 11290/open/tcp/////, 11291/open/tcp/////",
+      "Host: 192.168.10.41 (cent01w)\tStatus: Up",
+      "Host: 192.168.10.41 (cent01w)\tPorts: 3306/open/tcp//mysql///, 11290/open/tcp/////, 11291/open/tcp/////",
+    ].join("\n");
+    const { hostsUp, findings } = parseGrepable(dup);
+    expect(hostsUp).toBe(1);
+    expect(findings).toHaveLength(3);
+    expect(findings.map((f) => f.port)).toEqual([3306, 11290, 11291]);
+  });
+});
+
+describe("ipv4InCidr", () => {
+  it("accepts addresses inside the block", () => {
+    expect(ipv4InCidr("192.168.10.41", "192.168.10.0/24")).toBe(true);
+    expect(ipv4InCidr("10.96.0.1", "10.96.0.0/16")).toBe(true);
+    expect(ipv4InCidr("10.0.0.5", "0.0.0.0/0")).toBe(true);
+    expect(ipv4InCidr("172.16.5.9", "172.16.5.9/32")).toBe(true);
+  });
+
+  it("rejects addresses outside the block", () => {
+    expect(ipv4InCidr("192.168.10.41", "192.168.40.0/24")).toBe(false);
+    expect(ipv4InCidr("10.97.0.5", "10.96.0.0/24")).toBe(false);
+    expect(ipv4InCidr("172.16.5.10", "172.16.5.9/32")).toBe(false);
+  });
+
+  it("returns null for IPv6 or unparseable input", () => {
+    expect(ipv4InCidr("fd00::1", "192.168.10.0/24")).toBeNull();
+    expect(ipv4InCidr("192.168.10.41", "fd00::/64")).toBeNull();
+    expect(ipv4InCidr("not-an-ip", "192.168.10.0/24")).toBeNull();
+    expect(ipv4InCidr("192.168.10.999", "192.168.10.0/24")).toBeNull();
+    expect(ipv4InCidr("192.168.10.41", "192.168.10.0/33")).toBeNull();
   });
 });

@@ -200,6 +200,22 @@ describe("ip addresses", () => {
     expect(r.status).toBe(409);
   });
 
+  it("422s an address outside the subnet CIDR", async () => {
+    const r = await call("POST", "/ip-addresses", { subnetId, address: "10.97.0.5" });
+    expect(r.status).toBe(422);
+    expect(r.body.message).toContain("not inside subnet");
+  });
+
+  it("422s a patch that moves the address outside the CIDR", async () => {
+    const r = await call("PATCH", `/ip-addresses/${ipId}`, { address: "10.97.0.5" });
+    expect(r.status).toBe(422);
+    const ok = await call("PATCH", `/ip-addresses/${ipId}`, { address: "10.96.0.11" });
+    expect(ok.status).toBe(200);
+    expect(ok.body.address).toBe("10.96.0.11");
+    // Restore the address the reclaim test below depends on.
+    expect((await call("PATCH", `/ip-addresses/${ipId}`, { address: "10.96.0.10" })).status).toBe(200);
+  });
+
   it("409s restore when the address was reclaimed", async () => {
     await call("POST", `/ip-addresses/${ipId}/archive`);
     expect((await call("GET", `/ip-addresses/${ipId}`)).status).toBe(404);

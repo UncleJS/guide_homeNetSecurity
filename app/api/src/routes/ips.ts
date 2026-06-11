@@ -1,8 +1,22 @@
 import { Elysia, t } from "elysia";
 import { and, eq, isNull, desc } from "drizzle-orm";
 import { db } from "../db/client.ts";
-import { ipAddresses, ASSIGNMENT_TYPES } from "../db/schema.ts";
+import { ipAddresses, subnets, ASSIGNMENT_TYPES } from "../db/schema.ts";
 import { touch, archiveMark, restoreMark, paginate, isDupError, isFkError, affected } from "../lib/util.ts";
+import { ipv4InCidr } from "../lib/net.ts";
+
+// 422 message when the address is outside the subnet's CIDR; null when valid
+// or not evaluable (missing subnet falls through to the FK error, IPv6 is
+// not checked).
+async function cidrMismatch(subnetId: number, address: string): Promise<string | null> {
+  const [subnet] = await db.select().from(subnets)
+    .where(and(eq(subnets.id, subnetId), isNull(subnets.archivedAtUTC)));
+  if (!subnet) return null;
+  if (ipv4InCidr(address, subnet.cidr) === false) {
+    return `Address ${address} is not inside subnet ${subnet.name} (${subnet.cidr})`;
+  }
+  return null;
+}
 
 const IpBody = t.Object({
   subnetId: t.Integer(),
@@ -38,6 +52,8 @@ export const ipRoutes = new Elysia({ prefix: "/ip-addresses", tags: ["IP Address
     return row ?? status(404, { message: "IP not found" });
   }, { params: t.Object({ id: t.Numeric() }), detail: { summary: "Get an IP allocation" } })
   .post("/", async ({ body, status }) => {
+    const mismatch = await cidrMismatch(body.subnetId, body.address);
+    if (mismatch) return status(422, { message: mismatch });
     try {
       const [{ id }] = await db.insert(ipAddresses).values(body).$returningId();
       const [row] = await db.select().from(ipAddresses).where(eq(ipAddresses.id, id));
@@ -49,6 +65,16 @@ export const ipRoutes = new Elysia({ prefix: "/ip-addresses", tags: ["IP Address
     }
   }, { body: IpBody, detail: { summary: "Allocate an IP address" } })
   .patch("/:id", async ({ params, body, status }) => {
+    if (body.subnetId !== undefined || body.address !== undefined) {
+      const [current] = await db.select().from(ipAddresses)
+        .where(and(eq(ipAddresses.id, params.id), isNull(ipAddresses.archivedAtUTC)));
+      if (!current) return status(404, { message: "IP not found" });
+      const mismatch = await cidrMismatch(
+        body.subnetId ?? current.subnetId,
+        body.address ?? current.address,
+      );
+      if (mismatch) return status(422, { message: mismatch });
+    }
     try {
       await db.update(ipAddresses).set({ ...body, ...touch() })
         .where(and(eq(ipAddresses.id, params.id), isNull(ipAddresses.archivedAtUTC)));

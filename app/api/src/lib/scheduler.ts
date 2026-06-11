@@ -131,7 +131,9 @@ async function resolveTargets(s: Schedule): Promise<{ targets: string[]; singleH
   const ips = await db.select().from(ipAddresses)
     .where(and(eq(ipAddresses.deviceId, s.deviceId), isNull(ipAddresses.archivedAtUTC)));
   if (!ips.length) throw new Error("Target device has no active IP addresses");
-  return { targets: ips.map((ip) => ip.address), singleHost: true };
+  // The same address may be allocated under several subnets; nmap scans each
+  // CLI target separately, so duplicates would double every finding.
+  return { targets: [...new Set(ips.map((ip) => ip.address))], singleHost: true };
 }
 
 // Run the scan for an existing scan_runs row and finalize its status.
