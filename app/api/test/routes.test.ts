@@ -410,6 +410,7 @@ describe("scan runs (run-now without nmap dependency)", () => {
 
 describe("import scan findings onto devices", () => {
   let deviceId: number;
+  let registeredIpId: number;
   let runId: number;
   let openFindingId: number;
   const REGISTERED_IP = "10.94.0.10";
@@ -428,7 +429,8 @@ describe("import scan findings onto devices", () => {
     const s = await call("POST", "/subnets", { name: "Import test net", cidr: "10.94.0.0/24" });
     const d = await call("POST", "/devices", { hostname: "import-host" });
     deviceId = d.body.id;
-    await call("POST", "/ip-addresses", { subnetId: s.body.id, deviceId, address: REGISTERED_IP });
+    const ip = await call("POST", "/ip-addresses", { subnetId: s.body.id, deviceId, address: REGISTERED_IP });
+    registeredIpId = ip.body.id;
     const sched = await call("POST", "/schedules", {
       name: "Import test sweep", targetType: "subnet", subnetId: s.body.id,
       nextRunAtUTC: new Date(Date.now() + 86_400_000).toISOString(),
@@ -455,6 +457,7 @@ describe("import scan findings onto devices", () => {
     expect(ssh.source).toBe("scan");
     expect(ssh.service).toBe("ssh");
     expect(ssh.lastSeenAtUTC).not.toBeNull();
+    expect(ssh.ipAddressId).toBe(registeredIpId);
     expect(ports.body.data.some((p: { port: number }) => p.port === 443)).toBe(false);
   });
 
@@ -476,9 +479,13 @@ describe("import scan findings onto devices", () => {
     expect((await call("POST", "/scan-runs/999999/import-findings", {})).status).toBe(404);
   });
 
-  it("409s a manual duplicate of an imported port", async () => {
-    const r = await call("POST", "/device-ports", { deviceId, port: 22, protocol: "tcp" });
-    expect(r.status).toBe(409);
+  it("409s a manual duplicate on the same IP; allows the same port device-wide", async () => {
+    const dup = await call("POST", "/device-ports", { deviceId, port: 22, protocol: "tcp", ipAddressId: registeredIpId });
+    expect(dup.status).toBe(409);
+    // Device-wide (no IP binding) coexists with the ip-bound row by design.
+    const wide = await call("POST", "/device-ports", { deviceId, port: 22, protocol: "tcp" });
+    expect(wide.status).toBe(200);
+    expect(wide.body.ipAddressId).toBeNull();
   });
 
   it("manual registration defaults to source=manual with no last-seen", async () => {
@@ -486,6 +493,85 @@ describe("import scan findings onto devices", () => {
     expect(r.status).toBe(200);
     expect(r.body.source).toBe("manual");
     expect(r.body.lastSeenAtUTC).toBeNull();
+  });
+});
+
+describe("ip-bound device ports", () => {
+  let deviceId: number;
+  let otherDeviceId: number;
+  let ip1Id: number;
+  let ip2Id: number;
+  let otherIpId: number;
+  let runId: number;
+
+  beforeAll(async () => {
+    const s = await call("POST", "/subnets", { name: "IP-bound test net", cidr: "10.93.0.0/24" });
+    const d = await call("POST", "/devices", { hostname: "ipbound-host" });
+    deviceId = d.body.id;
+    const o = await call("POST", "/devices", { hostname: "ipbound-other" });
+    otherDeviceId = o.body.id;
+    ip1Id = (await call("POST", "/ip-addresses", { subnetId: s.body.id, deviceId, address: "10.93.0.20" })).body.id;
+    ip2Id = (await call("POST", "/ip-addresses", { subnetId: s.body.id, deviceId, address: "10.93.0.21" })).body.id;
+    otherIpId = (await call("POST", "/ip-addresses", { subnetId: s.body.id, deviceId: otherDeviceId, address: "10.93.0.30" })).body.id;
+    const sched = await call("POST", "/schedules", {
+      name: "IP-bound test sweep", targetType: "subnet", subnetId: s.body.id,
+      nextRunAtUTC: new Date(Date.now() + 86_400_000).toISOString(),
+    });
+    const [run] = await pool.query(
+      "INSERT INTO scan_runs (schedule_id, scheduled_for_UTC, status) VALUES (?, UTC_TIMESTAMP(), 'completed')",
+      [sched.body.id],
+    );
+    runId = (run as { insertId: number }).insertId;
+  });
+
+  it("import claims a pre-existing device-wide port and binds it to the scanned IP", async () => {
+    const wide = await call("POST", "/device-ports", { deviceId, port: 8443, protocol: "tcp" });
+    expect(wide.status).toBe(200);
+    expect(wide.body.ipAddressId).toBeNull();
+    await pool.query(
+      "INSERT INTO scan_findings (run_id, ip_address, port, protocol, state, service) VALUES (?, '10.93.0.20', 8443, 'tcp', 'open', 'https-alt')",
+      [runId],
+    );
+    const r = await call("POST", `/scan-runs/${runId}/import-findings`, {});
+    expect(r.body).toEqual({ imported: 0, updated: 1, skippedState: 0, skippedUnmatched: [] });
+    const row = await call("GET", `/device-ports/${wide.body.id}`);
+    expect(row.body.ipAddressId).toBe(ip1Id);
+    expect(row.body.lastSeenAtUTC).not.toBeNull();
+  });
+
+  it("allows the same port on two different IPs of one device", async () => {
+    expect((await call("POST", "/device-ports", { deviceId, port: 9000, ipAddressId: ip1Id })).status).toBe(200);
+    expect((await call("POST", "/device-ports", { deviceId, port: 9000, ipAddressId: ip2Id })).status).toBe(200);
+  });
+
+  it("422s an IP binding that belongs to another device", async () => {
+    expect((await call("POST", "/device-ports", { deviceId, port: 1234, ipAddressId: otherIpId })).status).toBe(422);
+    expect((await call("POST", "/device-ports", { deviceId, port: 1234, ipAddressId: 999999 })).status).toBe(422);
+    const bound = await call("GET", `/device-ports?ipAddressId=${ip1Id}`);
+    const portId = bound.body.data[0].id;
+    expect((await call("PATCH", `/device-ports/${portId}`, { ipAddressId: otherIpId })).status).toBe(422);
+    // Re-pointing the device while an IP binding exists must also fail.
+    expect((await call("PATCH", `/device-ports/${portId}`, { deviceId: otherDeviceId })).status).toBe(422);
+  });
+
+  it("filters by ipAddressId, optionally unioned with device-wide rows", async () => {
+    await call("POST", "/device-ports", { deviceId, port: 7000 }); // device-wide
+    const bound = await call("GET", `/device-ports?ipAddressId=${ip1Id}`);
+    expect(bound.body.data.length).toBe(2); // claimed 8443 + 9000 on ip1
+    expect(bound.body.data.every((p: { ipAddressId: number }) => p.ipAddressId === ip1Id)).toBe(true);
+    const union = await call("GET", `/device-ports?deviceId=${deviceId}&ipAddressId=${ip1Id}&includeDeviceWide=true`);
+    const ports = union.body.data.map((p: { port: number }) => p.port).sort();
+    expect(ports).toEqual([7000, 8443, 9000]);
+    expect((await call("GET", `/device-ports?ipAddressId=${ip1Id}&includeDeviceWide=true`)).status).toBe(422);
+  });
+
+  it("409s restore when the (device, ip, port, protocol) slot was reclaimed", async () => {
+    const bound = await call("GET", `/device-ports?ipAddressId=${ip2Id}`);
+    const portId = bound.body.data[0].id;
+    expect((await call("POST", `/device-ports/${portId}/archive`)).status).toBe(200);
+    const again = await call("POST", "/device-ports", { deviceId, port: 9000, ipAddressId: ip2Id });
+    expect(again.status).toBe(200);
+    expect((await call("POST", `/device-ports/${portId}/restore`)).status).toBe(409);
   });
 });
 

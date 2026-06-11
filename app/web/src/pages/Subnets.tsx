@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { apiPatch, apiPost, useApi, useMutation } from "@/api/client";
 import {
   Button, Card, CardTitle, Checkbox, Field, Input, Modal, Select, Table, Th, Td, Textarea,
@@ -136,7 +137,10 @@ export function Subnets() {
               const archived = s.archivedAtUTC != null;
               return (
                 <tr key={s.id} className={archived ? "opacity-60" : undefined}>
-                  <Td>{s.name}{archived && <span className="ml-2 text-xs text-foreground opacity-70">(archived)</span>}</Td>
+                  <Td>
+                    <Link to={`/subnets/${s.id}`} className="text-foreground underline-offset-2 hover:underline">{s.name}</Link>
+                    {archived && <span className="ml-2 text-xs text-foreground opacity-70">(archived)</span>}
+                  </Td>
                   <Td className="font-mono">{s.cidr}</Td>
                   <Td>{s.vlanId ?? "—"}</Td>
                   <Td><ZoneBadge zone={s.trustZone} /></Td>

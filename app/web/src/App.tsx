@@ -2,6 +2,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Layout } from "./components/Layout.tsx";
 import { Dashboard } from "./pages/Dashboard.tsx";
 import { Subnets } from "./pages/Subnets.tsx";
+import { SubnetDetail } from "./pages/SubnetDetail.tsx";
 import { Devices } from "./pages/Devices.tsx";
 import { DeviceDetail } from "./pages/DeviceDetail.tsx";
 import { IpAddresses } from "./pages/IpAddresses.tsx";
@@ -19,6 +20,7 @@ export function App() {
         <Route element={<Layout />}>
           <Route index element={<Dashboard />} />
           <Route path="subnets" element={<Subnets />} />
+          <Route path="subnets/:id" element={<SubnetDetail />} />
           <Route path="devices" element={<Devices />} />
           <Route path="devices/:id" element={<DeviceDetail />} />
           <Route path="ips" element={<IpAddresses />} />

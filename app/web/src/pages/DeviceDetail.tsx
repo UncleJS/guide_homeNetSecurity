@@ -12,13 +12,16 @@ import { formatLocal, isoToLocalInput, localToISO } from "@/lib/format";
 interface DevicePort {
   id: number; port: number; protocol: string; service: string | null;
   notes: string | null; source: "manual" | "scan"; lastSeenAtUTC: string | null;
+  ipAddressId: number | null;
 }
+
+type DeviceIp = { id: number; address: string; assignmentType: string; macAddress: string | null };
 
 interface DeviceFull {
   id: number; hostname: string; deviceType: string | null; vendor: string | null;
   owner: string | null; location: string | null; firmwareVersion: string | null;
   riskLevel: string; isGateway: number; lastSeenUTC: string | null;
-  ips: Array<{ id: number; address: string; assignmentType: string; macAddress: string | null }>;
+  ips: DeviceIp[];
   ports: DevicePort[];
   hardening: Array<{ id: number; control: string; state: string }>;
 }
@@ -62,12 +65,13 @@ function DetailsCard({ device, onSaved }: { device: DeviceFull; onSaved: () => P
   );
 }
 
-type PortForm = { port: string; protocol: string; service: string; notes: string };
+type PortForm = { port: string; protocol: string; service: string; notes: string; ipAddressId: string };
 
-const PORT_FORM_EMPTY: PortForm = { port: "", protocol: "tcp", service: "", notes: "" };
+const PORT_FORM_EMPTY: PortForm = { port: "", protocol: "tcp", service: "", notes: "", ipAddressId: "" };
 
 const portPayload = (deviceId: number, f: PortForm) => ({
   deviceId,
+  ipAddressId: f.ipAddressId ? Number(f.ipAddressId) : null,
   port: Number(f.port),
   protocol: f.protocol,
   service: f.service || null,
@@ -79,9 +83,10 @@ const portFormFromRow = (p: DevicePort): PortForm => ({
   protocol: p.protocol,
   service: p.service ?? "",
   notes: p.notes ?? "",
+  ipAddressId: p.ipAddressId != null ? String(p.ipAddressId) : "",
 });
 
-function PortFields({ value, set }: { value: PortForm; set: (f: PortForm) => void }) {
+function PortFields({ value, set, ips }: { value: PortForm; set: (f: PortForm) => void; ips: DeviceIp[] }) {
   return (
     <div className="grid gap-x-4 md:grid-cols-2">
       <Field label="Port">
@@ -91,6 +96,12 @@ function PortFields({ value, set }: { value: PortForm; set: (f: PortForm) => voi
         <Select value={value.protocol} onChange={(e) => set({ ...value, protocol: e.target.value })}>
           <option value="tcp">tcp</option>
           <option value="udp">udp</option>
+        </Select>
+      </Field>
+      <Field label="IP address">
+        <Select value={value.ipAddressId} onChange={(e) => set({ ...value, ipAddressId: e.target.value })}>
+          <option value="">device-wide</option>
+          {ips.map((ip) => <option key={ip.id} value={ip.id}>{ip.address}</option>)}
         </Select>
       </Field>
       <Field label="Service (optional)">
@@ -103,7 +114,39 @@ function PortFields({ value, set }: { value: PortForm; set: (f: PortForm) => voi
   );
 }
 
-function PortsCard({ deviceId, ports, onSaved }: { deviceId: number; ports: DevicePort[]; onSaved: () => Promise<void> }) {
+function PortRows({ ports, onEdit, onArchive }: {
+  ports: DevicePort[];
+  onEdit: (p: DevicePort) => void;
+  onArchive: (p: DevicePort) => void;
+}) {
+  return (
+    <Table>
+      <thead><tr><Th>Port</Th><Th>Proto</Th><Th>Service</Th><Th>Notes</Th><Th>Source</Th><Th>Last seen</Th><Th className="text-right">Actions</Th></tr></thead>
+      <tbody>
+        {ports.map((p) => (
+          <tr key={p.id}>
+            <Td className="font-mono">{p.port}</Td>
+            <Td>{p.protocol}</Td>
+            <Td>{p.service ?? "—"}</Td>
+            <Td className="max-w-64">
+              <span className="block truncate" title={p.notes ?? undefined}>{p.notes ?? "—"}</span>
+            </Td>
+            <Td><Badge className={p.source === "scan" ? "border-primary" : ""}>{p.source}</Badge></Td>
+            <Td>{formatLocal(p.lastSeenAtUTC)}</Td>
+            <Td className="text-right">
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" className="h-7 px-2 text-xs" onClick={() => onEdit(p)}>Edit</Button>
+                <Button variant="ghost" className="h-7 px-2 text-xs" onClick={() => onArchive(p)}>Archive</Button>
+              </div>
+            </Td>
+          </tr>
+        ))}
+      </tbody>
+    </Table>
+  );
+}
+
+function PortsCard({ deviceId, ips, ports, onSaved }: { deviceId: number; ips: DeviceIp[]; ports: DevicePort[]; onSaved: () => Promise<void> }) {
   const [adding, setAdding] = useState(false);
   const [addForm, setAddForm] = useState<PortForm>(PORT_FORM_EMPTY);
   const addMut = useMutation();
@@ -149,6 +192,27 @@ function PortsCard({ deviceId, ports, onSaved }: { deviceId: number; ports: Devi
     if (ok) setArchiving(null);
   }
 
+  // Ports grouped per bound IP, then device-wide; ports bound to a since-
+  // released (archived) IP fall into an "Unknown IP" group so they stay visible.
+  const groups: Array<{ key: string; label: string; ports: DevicePort[] }> = [];
+  for (const ip of ips) {
+    const bound = ports.filter((p) => p.ipAddressId === ip.id);
+    if (bound.length) groups.push({ key: `ip-${ip.id}`, label: ip.address, ports: bound });
+  }
+  const knownIpIds = new Set(ips.map((ip) => ip.id));
+  const orphanIds = [...new Set(
+    ports.filter((p) => p.ipAddressId != null && !knownIpIds.has(p.ipAddressId)).map((p) => p.ipAddressId!),
+  )];
+  for (const orphanId of orphanIds) {
+    groups.push({
+      key: `ip-${orphanId}`,
+      label: `Unknown IP (#${orphanId})`,
+      ports: ports.filter((p) => p.ipAddressId === orphanId),
+    });
+  }
+  const deviceWide = ports.filter((p) => p.ipAddressId == null);
+  if (deviceWide.length) groups.push({ key: "device-wide", label: "Device-wide", ports: deviceWide });
+
   return (
     <Card>
       <div className="mb-3 flex items-center justify-between">
@@ -157,26 +221,14 @@ function PortsCard({ deviceId, ports, onSaved }: { deviceId: number; ports: Devi
       </div>
       {archiveMut.error && <p className="mb-2 text-sm text-danger">{archiveMut.error}</p>}
       {ports.length === 0 ? <p className="text-sm text-foreground opacity-80">No ports recorded.</p> : (
-        <Table>
-          <thead><tr><Th>Port</Th><Th>Proto</Th><Th>Service</Th><Th>Source</Th><Th>Last seen</Th><Th className="text-right">Actions</Th></tr></thead>
-          <tbody>
-            {ports.map((p) => (
-              <tr key={p.id}>
-                <Td className="font-mono">{p.port}</Td>
-                <Td>{p.protocol}</Td>
-                <Td>{p.service ?? "—"}</Td>
-                <Td><Badge className={p.source === "scan" ? "border-primary" : ""}>{p.source}</Badge></Td>
-                <Td>{formatLocal(p.lastSeenAtUTC)}</Td>
-                <Td className="text-right">
-                  <div className="flex justify-end gap-2">
-                    <Button variant="outline" className="h-7 px-2 text-xs" onClick={() => openEdit(p)}>Edit</Button>
-                    <Button variant="ghost" className="h-7 px-2 text-xs" onClick={() => setArchiving(p)}>Archive</Button>
-                  </div>
-                </Td>
-              </tr>
-            ))}
-          </tbody>
-        </Table>
+        <div className="space-y-4">
+          {groups.map((g) => (
+            <div key={g.key}>
+              <p className={`mb-1 text-sm font-medium text-foreground ${g.key.startsWith("ip-") && !g.label.startsWith("Unknown") ? "font-mono" : ""}`}>{g.label}</p>
+              <PortRows ports={g.ports} onEdit={openEdit} onArchive={setArchiving} />
+            </div>
+          ))}
+        </div>
       )}
 
       <Modal
@@ -190,7 +242,7 @@ function PortsCard({ deviceId, ports, onSaved }: { deviceId: number; ports: Devi
           </>
         }
       >
-        <PortFields value={addForm} set={setAddForm} />
+        <PortFields value={addForm} set={setAddForm} ips={ips} />
         {addMut.error && <p className="text-sm text-danger">{addMut.error}</p>}
       </Modal>
 
@@ -205,7 +257,7 @@ function PortsCard({ deviceId, ports, onSaved }: { deviceId: number; ports: Devi
           </>
         }
       >
-        <PortFields value={editForm} set={setEditForm} />
+        <PortFields value={editForm} set={setEditForm} ips={ips} />
         {editMut.error && <p className="text-sm text-danger">{editMut.error}</p>}
       </Modal>
 
@@ -295,7 +347,7 @@ export function DeviceDetail() {
             </Table>
           )}
         </Card>
-        <PortsCard deviceId={data.id} ports={data.ports} onSaved={refetch} />
+        <PortsCard deviceId={data.id} ips={data.ips} ports={data.ports} onSaved={refetch} />
       </div>
 
       <NotesPanel entityType="device" entityId={data.id} />

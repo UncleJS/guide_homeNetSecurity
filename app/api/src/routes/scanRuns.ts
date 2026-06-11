@@ -82,63 +82,85 @@ export const scanRunRoutes = new Elysia({ prefix: "/scan-runs", tags: ["Scan Run
     // Resolve each finding IP to exactly one active device; 0 or >1 matches → unmatched.
     const ips = [...new Set(open.map((f) => f.ipAddress))];
     const ipRows = ips.length
-      ? await db.select({ address: ipAddresses.address, deviceId: ipAddresses.deviceId })
+      ? await db.select({ id: ipAddresses.id, address: ipAddresses.address, deviceId: ipAddresses.deviceId })
           .from(ipAddresses)
           .where(and(inArray(ipAddresses.address, ips), isNull(ipAddresses.archivedAtUTC)))
+          .orderBy(asc(ipAddresses.id))
       : [];
-    const devicesByIp = new Map<string, Set<number>>();
+    // address → ip rows of distinct devices. If the single matched device has the
+    // same address allocated more than once (possible across subnets), the lowest
+    // ipAddresses.id wins (rows arrive id-ascending), for determinism.
+    const rowsByIp = new Map<string, Map<number, number>>(); // address → deviceId → ipAddressId
     for (const r of ipRows) {
       if (r.deviceId == null) continue;
-      const set = devicesByIp.get(r.address) ?? new Set<number>();
-      set.add(r.deviceId);
-      devicesByIp.set(r.address, set);
+      const byDevice = rowsByIp.get(r.address) ?? new Map<number, number>();
+      if (!byDevice.has(r.deviceId)) byDevice.set(r.deviceId, r.id);
+      rowsByIp.set(r.address, byDevice);
     }
-    const deviceForIp = new Map<string, number>();
+    const targetForIp = new Map<string, { deviceId: number; ipAddressId: number }>();
     const unmatched = new Set<string>();
     for (const ip of ips) {
-      const set = devicesByIp.get(ip);
-      if (set?.size === 1) deviceForIp.set(ip, [...set][0]!);
-      else unmatched.add(ip);
+      const byDevice = rowsByIp.get(ip);
+      if (byDevice?.size === 1) {
+        const [deviceId, ipAddressId] = [...byDevice.entries()][0]!;
+        targetForIp.set(ip, { deviceId, ipAddressId });
+      } else unmatched.add(ip);
     }
 
-    const deviceIds = [...new Set(deviceForIp.values())];
-    const activePortIds = new Map<string, number>(); // "deviceId:port:protocol" -> devicePorts.id
+    const deviceIds = [...new Set([...targetForIp.values()].map((t) => t.deviceId))];
+    const exact = new Map<string, number>();      // "deviceId:ipId:port:protocol" → devicePorts.id
+    const deviceWide = new Map<string, number>(); // "deviceId:port:protocol" → devicePorts.id (ip NULL)
     if (deviceIds.length) {
       const rows = await db.select({
         id: devicePorts.id,
         deviceId: devicePorts.deviceId,
+        ipAddressId: devicePorts.ipAddressId,
         port: devicePorts.port,
         protocol: devicePorts.protocol,
       }).from(devicePorts)
         .where(and(inArray(devicePorts.deviceId, deviceIds), isNull(devicePorts.archivedAtUTC)));
-      for (const p of rows) activePortIds.set(`${p.deviceId}:${p.port}:${p.protocol}`, p.id);
+      for (const p of rows) {
+        if (p.ipAddressId == null) deviceWide.set(`${p.deviceId}:${p.port}:${p.protocol}`, p.id);
+        else exact.set(`${p.deviceId}:${p.ipAddressId}:${p.port}:${p.protocol}`, p.id);
+      }
     }
 
     let imported = 0;
     let updated = 0;
     for (const f of open) {
-      const deviceId = deviceForIp.get(f.ipAddress);
-      if (deviceId === undefined) continue;
-      const key = `${deviceId}:${f.port}:${f.protocol}`;
-      const existingId = activePortIds.get(key);
-      if (existingId !== undefined) {
-        // Re-seen: bump last-seen; only overwrite service when the scan identified one.
-        await db.update(devicePorts).set({
-          ...(f.service ? { service: f.service } : {}),
-          lastSeenAtUTC: sql`UTC_TIMESTAMP()` as unknown as Date,
-          ...touch(),
-        }).where(eq(devicePorts.id, existingId));
+      const target = targetForIp.get(f.ipAddress);
+      if (target === undefined) continue;
+      const { deviceId, ipAddressId } = target;
+      const exactKey = `${deviceId}:${ipAddressId}:${f.port}:${f.protocol}`;
+      const wideKey = `${deviceId}:${f.port}:${f.protocol}`;
+      // Re-seen: bump last-seen; only overwrite service when the scan identified one.
+      const seen = {
+        ...(f.service ? { service: f.service } : {}),
+        lastSeenAtUTC: sql`UTC_TIMESTAMP()` as unknown as Date,
+        ...touch(),
+      };
+      const exactId = exact.get(exactKey);
+      const wideId = deviceWide.get(wideKey);
+      if (exactId !== undefined) {
+        await db.update(devicePorts).set(seen).where(eq(devicePorts.id, exactId));
+        updated++;
+      } else if (wideId !== undefined) {
+        // Claim a pre-existing device-wide row: the scan proves which address it lives on.
+        await db.update(devicePorts).set({ ...seen, ipAddressId }).where(eq(devicePorts.id, wideId));
+        deviceWide.delete(wideKey);
+        exact.set(exactKey, wideId);
         updated++;
       } else {
         const [{ id }] = await db.insert(devicePorts).values({
           deviceId,
+          ipAddressId,
           port: f.port,
           protocol: f.protocol,
           service: f.service,
           source: "scan",
           lastSeenAtUTC: sql`UTC_TIMESTAMP()` as unknown as Date,
         }).$returningId();
-        activePortIds.set(key, id);
+        exact.set(exactKey, id);
         imported++;
       }
     }

@@ -1,19 +1,16 @@
 import { useState } from "react";
 import { apiPatch, apiPost, useApi, useMutation } from "@/api/client";
 import {
-  Button, Card, CardTitle, Checkbox, Field, Input, Modal, Select, Table, Th, Td,
+  Button, Card, CardTitle, Checkbox, Field, Input, Modal, Select,
 } from "@/components/ui";
 import { Loading, ErrorState, Empty } from "@/components/states";
+import { IpPortsTable, type IpRow } from "@/components/IpPortsTable";
 
 const TYPES = ["static", "dhcp", "reserved"];
 
 interface Subnet { id: number; name: string; cidr: string }
 interface Device { id: number; hostname: string }
-interface Ip {
-  id: number; subnetId: number; deviceId: number | null; address: string;
-  assignmentType: string; macAddress: string | null; status: string;
-  archivedAtUTC: string | null;
-}
+type Ip = IpRow;
 
 type Form = {
   subnetId: string; deviceId: string; address: string;
@@ -155,35 +152,23 @@ export function IpAddresses() {
       {rowMut.error && <p className="text-sm text-danger">{rowMut.error}</p>}
       {ips.data && ips.data.data.length === 0 && <Empty title="No IP allocations yet">Allocate addresses to track static/DHCP/reserved usage.</Empty>}
       {ips.data && ips.data.data.length > 0 && (
-        <Table>
-          <thead><tr><Th>Address</Th><Th>Subnet</Th><Th>Type</Th><Th>Device</Th><Th>MAC</Th><Th className="text-right">Actions</Th></tr></thead>
-          <tbody>
-            {ips.data.data.map((ip) => {
-              const archived = ip.archivedAtUTC != null;
-              return (
-                <tr key={ip.id} className={archived ? "opacity-60" : undefined}>
-                  <Td className="font-mono">{ip.address}{archived && <span className="ml-2 font-sans text-xs text-foreground opacity-70">(archived)</span>}</Td>
-                  <Td>{subnetName(ip.subnetId)}</Td>
-                  <Td>{ip.assignmentType}</Td>
-                  <Td>{deviceName(ip.deviceId)}</Td>
-                  <Td className="font-mono">{ip.macAddress ?? "—"}</Td>
-                  <Td className="text-right">
-                    <div className="flex justify-end gap-2">
-                      {archived ? (
-                        <Button variant="outline" className="h-7 px-2 text-xs" onClick={() => restore(ip.id)}>Unarchive</Button>
-                      ) : (
-                        <>
-                          <Button variant="outline" className="h-7 px-2 text-xs" onClick={() => openEdit(ip)}>Edit</Button>
-                          <Button variant="ghost" className="h-7 px-2 text-xs" onClick={() => setReleasing(ip)}>Release</Button>
-                        </>
-                      )}
-                    </div>
-                  </Td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </Table>
+        <IpPortsTable
+          ips={ips.data.data}
+          subnetName={subnetName}
+          deviceName={deviceName}
+          renderActions={(ip) => (
+            <div className="flex justify-end gap-2">
+              {ip.archivedAtUTC != null ? (
+                <Button variant="outline" className="h-7 px-2 text-xs" onClick={() => restore(ip.id)}>Unarchive</Button>
+              ) : (
+                <>
+                  <Button variant="outline" className="h-7 px-2 text-xs" onClick={() => openEdit(ip)}>Edit</Button>
+                  <Button variant="ghost" className="h-7 px-2 text-xs" onClick={() => setReleasing(ip)}>Release</Button>
+                </>
+              )}
+            </div>
+          )}
+        />
       )}
 
       <Modal

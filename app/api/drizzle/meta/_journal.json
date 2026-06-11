@@ -36,6 +36,13 @@
       "when": 1781162205036,
       "tag": "0004_cuddly_barracuda",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1781163770243,
+      "tag": "0005_magenta_doomsday",
+      "breakpoints": true
     }
   ]
 }

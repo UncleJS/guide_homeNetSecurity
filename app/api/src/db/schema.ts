@@ -129,6 +129,9 @@ export const devicePorts = mysqlTable("device_ports", {
   deviceId: bigint("device_id", { mode: "number", unsigned: true })
     .notNull()
     .references(() => devices.id),
+  // null = device-wide; set = bound to one specific address of the device
+  ipAddressId: bigint("ip_address_id", { mode: "number", unsigned: true })
+    .references(() => ipAddresses.id),
   port: int("port").notNull(),
   protocol: varchar("protocol", { length: 8 }).notNull().default("tcp"),
   service: varchar("service", { length: 80 }),
@@ -136,14 +139,15 @@ export const devicePorts = mysqlTable("device_ports", {
   source: mysqlEnum("source", PORT_SOURCES).notNull().default("manual"),
   lastSeenAtUTC: datetime("last_seen_at_UTC"), // null = never confirmed by a scan
   ...lifecycle,
-  // (device, port, protocol) unique among active rows
+  // (device, ip-or-0, port, protocol) unique among active rows
   devicePortActive: varchar("device_port_active", { length: 64 }).generatedAlwaysAs(
-    sql`(case when archived_at_UTC is null then concat(device_id, '-', port, '-', protocol) else null end)`,
+    sql`(case when archived_at_UTC is null then concat(device_id, '-', coalesce(ip_address_id, 0), '-', port, '-', protocol) else null end)`,
     { mode: "virtual" },
   ),
 }, (t) => ({
   devicePortActiveUk: uniqueIndex("uk_device_port_active").on(t.devicePortActive),
   deviceIx: index("ix_ports_device").on(t.deviceId),
+  ipIx: index("ix_ports_ip").on(t.ipAddressId),
 }));
 
 // Hardening checklist items --------------------------------------------------
