@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { apiPatch, apiPost, useApi, useMutation } from "@/api/client";
-import { Badge, Button, Card, CardTitle, Modal, Table, Th, Td, Textarea } from "@/components/ui";
+import { apiPost, useApi, useMutation } from "@/api/client";
+import { Badge, Button, Card, CardTitle, Table, Th, Td } from "@/components/ui";
 import { Loading, ErrorState, Empty } from "@/components/states";
 import { NotesPanel } from "@/components/NotesPanel";
 import { formatLocal } from "@/lib/format";
@@ -9,7 +9,7 @@ import { RUN_STATUS_CLASS } from "./Schedules.tsx";
 
 interface Finding {
   id: number; ipAddress: string; hostname: string | null; port: number;
-  protocol: string; state: string; service: string | null; notes: string | null;
+  protocol: string; state: string; service: string | null;
 }
 
 interface RunFull {
@@ -34,30 +34,12 @@ export function ScanRunDetail() {
     return () => clearInterval(timer);
   }, [data?.status, refetch]);
 
-  const [editingFinding, setEditingFinding] = useState<Finding | null>(null);
-  const [noteDraft, setNoteDraft] = useState("");
-  const noteMut = useMutation();
-
   const [importResult, setImportResult] = useState<ImportSummary | null>(null);
   const importMut = useMutation();
 
   if (loading && !data) return <Loading />;
   if (error) return <ErrorState message={error} onRetry={refetch} />;
   if (!data) return null;
-
-  function openNote(f: Finding) {
-    setEditingFinding(f);
-    setNoteDraft(f.notes ?? "");
-  }
-
-  async function saveNote() {
-    if (!editingFinding) return;
-    const ok = await noteMut.run(async () => {
-      await apiPatch(`/scan-runs/${id}/findings/${editingFinding.id}`, { notes: noteDraft || null });
-      await refetch();
-    });
-    if (ok) setEditingFinding(null);
-  }
 
   function importFindings(findingIds?: number[]) {
     return importMut.run(async () => {
@@ -131,7 +113,7 @@ export function ScanRunDetail() {
         {data.findings.length > 0 && (
           <Table>
             <thead><tr>
-              <Th>IP</Th><Th>Hostname</Th><Th>Port</Th><Th>Proto</Th><Th>State</Th><Th>Service</Th><Th>Notes</Th><Th className="text-right">Actions</Th>
+              <Th>IP</Th><Th>Hostname</Th><Th>Port</Th><Th>Proto</Th><Th>State</Th><Th>Service</Th><Th className="text-right">Actions</Th>
             </tr></thead>
             <tbody>
               {data.findings.map((f) => (
@@ -142,23 +124,17 @@ export function ScanRunDetail() {
                   <Td>{f.protocol}</Td>
                   <Td><Badge className="border-warning">{f.state}</Badge></Td>
                   <Td>{f.service ?? "—"}</Td>
-                  <Td className="max-w-64 truncate">{f.notes ?? "—"}</Td>
                   <Td className="text-right">
-                    <div className="flex justify-end gap-2">
-                      {f.state === "open" && (
-                        <Button
-                          variant="outline"
-                          className="h-7 px-2 text-xs"
-                          onClick={() => importFindings([f.id])}
-                          disabled={importMut.pending}
-                        >
-                          Add to device
-                        </Button>
-                      )}
-                      <Button variant="outline" className="h-7 px-2 text-xs" onClick={() => openNote(f)}>
-                        {f.notes ? "Edit note" : "Add note"}
+                    {f.state === "open" && (
+                      <Button
+                        variant="outline"
+                        className="h-7 px-2 text-xs"
+                        onClick={() => importFindings([f.id])}
+                        disabled={importMut.pending}
+                      >
+                        Add to device
                       </Button>
-                    </div>
+                    )}
                   </Td>
                 </tr>
               ))}
@@ -168,25 +144,6 @@ export function ScanRunDetail() {
       </Card>
 
       <NotesPanel entityType="scan_run" entityId={data.id} />
-
-      <Modal
-        open={editingFinding !== null}
-        onClose={() => setEditingFinding(null)}
-        title={editingFinding ? `Note for ${editingFinding.ipAddress}:${editingFinding.port}` : "Finding note"}
-        footer={
-          <>
-            <Button variant="ghost" onClick={() => setEditingFinding(null)}>Cancel</Button>
-            <Button onClick={saveNote} disabled={noteMut.pending}>{noteMut.pending ? "Saving…" : "Save note"}</Button>
-          </>
-        }
-      >
-        <Textarea
-          value={noteDraft}
-          onChange={(e) => setNoteDraft(e.target.value)}
-          placeholder="Expected service? Action needed? e.g. “Telnet should be disabled — raised hardening item.”"
-        />
-        {noteMut.error && <p className="mt-2 text-sm text-danger">{noteMut.error}</p>}
-      </Modal>
     </div>
   );
 }

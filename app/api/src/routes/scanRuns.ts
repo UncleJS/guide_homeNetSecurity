@@ -48,22 +48,6 @@ export const scanRunRoutes = new Elysia({ prefix: "/scan-runs", tags: ["Scan Run
       .orderBy(asc(scanFindings.ipAddress), asc(scanFindings.port));
     return { ...run, scheduleName: schedule?.name ?? null, findings };
   }, { params: t.Object({ id: t.Numeric() }), detail: { summary: "Get a scan run with its findings" } })
-  .patch("/:id/findings/:findingId", async ({ params, body, status }) => {
-    const [finding] = await db.select().from(scanFindings).where(and(
-      eq(scanFindings.id, params.findingId),
-      eq(scanFindings.runId, params.id),
-      isNull(scanFindings.archivedAtUTC),
-    ));
-    if (!finding) return status(404, { message: "Finding not found" });
-    await db.update(scanFindings).set({ notes: body.notes, ...touch() })
-      .where(eq(scanFindings.id, finding.id));
-    const [row] = await db.select().from(scanFindings).where(eq(scanFindings.id, finding.id));
-    return row;
-  }, {
-    params: t.Object({ id: t.Numeric(), findingId: t.Numeric() }),
-    body: t.Object({ notes: t.Nullable(t.String()) }),
-    detail: { summary: "Annotate a finding (analyst notes)" },
-  })
   .post("/:id/import-findings", async ({ params, body, status }) => {
     const [run] = await db.select({ id: scanRuns.id }).from(scanRuns)
       .where(and(eq(scanRuns.id, params.id), isNull(scanRuns.archivedAtUTC)));

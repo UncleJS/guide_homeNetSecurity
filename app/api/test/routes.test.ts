@@ -388,11 +388,6 @@ describe("scan runs (run-now without nmap dependency)", () => {
     expect(r.body.data.find((x: { id: number }) => x.id === runId)?.scheduleName).toBe("Device run-now test");
   });
 
-  it("404s a findings PATCH for a nonexistent finding", async () => {
-    const r = await call("PATCH", `/scan-runs/${runId}/findings/999999`, { notes: "x" });
-    expect(r.status).toBe(404);
-  });
-
   it("accepts a detailed note attached to the run (scan_run entity)", async () => {
     const r = await call("POST", "/notes", { entityType: "scan_run", entityId: runId, body: "Analyst write-up" });
     expect(r.status).toBe(200);
