@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { apiPatch, useApi, useMutation } from "@/api/client";
+import { apiPatch, apiPost, useApi, useMutation } from "@/api/client";
 import { Badge, Button, Card, CardTitle, Modal, Table, Th, Td, Textarea } from "@/components/ui";
 import { Loading, ErrorState, Empty } from "@/components/states";
 import { NotesPanel } from "@/components/NotesPanel";
@@ -19,6 +19,10 @@ interface RunFull {
   error: string | null; findings: Finding[];
 }
 
+interface ImportSummary {
+  imported: number; updated: number; skippedState: number; skippedUnmatched: string[];
+}
+
 export function ScanRunDetail() {
   const { id } = useParams();
   const { data, loading, error, refetch } = useApi<RunFull>(`/scan-runs/${id}`);
@@ -33,6 +37,9 @@ export function ScanRunDetail() {
   const [editingFinding, setEditingFinding] = useState<Finding | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
   const noteMut = useMutation();
+
+  const [importResult, setImportResult] = useState<ImportSummary | null>(null);
+  const importMut = useMutation();
 
   if (loading && !data) return <Loading />;
   if (error) return <ErrorState message={error} onRetry={refetch} />;
@@ -51,6 +58,18 @@ export function ScanRunDetail() {
     });
     if (ok) setEditingFinding(null);
   }
+
+  function importFindings(findingIds?: number[]) {
+    return importMut.run(async () => {
+      const res = await apiPost<ImportSummary>(
+        `/scan-runs/${id}/import-findings`,
+        findingIds ? { findingIds } : {},
+      );
+      setImportResult(res);
+    });
+  }
+
+  const openCount = data.findings.filter((f) => f.state === "open").length;
 
   return (
     <div className="space-y-6">
@@ -78,7 +97,32 @@ export function ScanRunDetail() {
       </Card>
 
       <Card>
-        <CardTitle className="mb-3">Findings</CardTitle>
+        <div className="mb-3 flex items-center justify-between">
+          <CardTitle>Findings</CardTitle>
+          <Button
+            variant="outline"
+            className="h-7 px-2 text-xs"
+            onClick={() => importFindings()}
+            disabled={importMut.pending || openCount === 0}
+          >
+            {importMut.pending ? "Importing…" : "Import all findings"}
+          </Button>
+        </div>
+        {importMut.error && <p className="mb-2 text-sm text-danger">{importMut.error}</p>}
+        {importResult && (
+          <div className="mb-3 rounded-md border border-border p-2 text-sm text-foreground">
+            <p>
+              Imported {importResult.imported} · Updated {importResult.updated} · Skipped (not open) {importResult.skippedState}
+            </p>
+            {importResult.skippedUnmatched.length > 0 && (
+              <p className="mt-1">
+                No registered device for{" "}
+                <span className="font-mono">{importResult.skippedUnmatched.join(", ")}</span>
+                {" — "}assign these under <Link to="/ip-addresses" className="underline underline-offset-2">IP Addresses</Link> first.
+              </p>
+            )}
+          </div>
+        )}
         {data.findings.length === 0 && (
           <Empty title={data.status === "running" ? "Scanning…" : "No open ports found"}>
             {data.status === "completed" && "The scan completed without discovering open TCP ports on the target."}
@@ -100,9 +144,21 @@ export function ScanRunDetail() {
                   <Td>{f.service ?? "—"}</Td>
                   <Td className="max-w-64 truncate">{f.notes ?? "—"}</Td>
                   <Td className="text-right">
-                    <Button variant="outline" className="h-7 px-2 text-xs" onClick={() => openNote(f)}>
-                      {f.notes ? "Edit note" : "Add note"}
-                    </Button>
+                    <div className="flex justify-end gap-2">
+                      {f.state === "open" && (
+                        <Button
+                          variant="outline"
+                          className="h-7 px-2 text-xs"
+                          onClick={() => importFindings([f.id])}
+                          disabled={importMut.pending}
+                        >
+                          Add to device
+                        </Button>
+                      )}
+                      <Button variant="outline" className="h-7 px-2 text-xs" onClick={() => openNote(f)}>
+                        {f.notes ? "Edit note" : "Add note"}
+                      </Button>
+                    </div>
                   </Td>
                 </tr>
               ))}

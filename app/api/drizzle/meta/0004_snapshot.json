@@ -1,0 +1,1413 @@
+{
+  "version": "5",
+  "dialect": "mysql",
+  "id": "2c535769-2efe-4345-b646-5213a319e8aa",
+  "prevId": "a4eddb8c-febb-465d-9728-ac3dd433b988",
+  "tables": {
+    "device_ports": {
+      "name": "device_ports",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigint unsigned",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "device_id": {
+          "name": "device_id",
+          "type": "bigint unsigned",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "port": {
+          "name": "port",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "protocol": {
+          "name": "protocol",
+          "type": "varchar(8)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'tcp'"
+        },
+        "service": {
+          "name": "service",
+          "type": "varchar(80)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "source": {
+          "name": "source",
+          "type": "enum('manual','scan')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'manual'"
+        },
+        "last_seen_at_UTC": {
+          "name": "last_seen_at_UTC",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at_UTC": {
+          "name": "created_at_UTC",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "UTC_TIMESTAMP()"
+        },
+        "updated_at_UTC": {
+          "name": "updated_at_UTC",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "UTC_TIMESTAMP()"
+        },
+        "archived_at_UTC": {
+          "name": "archived_at_UTC",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "device_port_active": {
+          "name": "device_port_active",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "generated": {
+            "as": "(case when archived_at_UTC is null then concat(device_id, '-', port, '-', protocol) else null end)",
+            "type": "virtual"
+          }
+        }
+      },
+      "indexes": {
+        "uk_device_port_active": {
+          "name": "uk_device_port_active",
+          "columns": [
+            "device_port_active"
+          ],
+          "isUnique": true
+        },
+        "ix_ports_device": {
+          "name": "ix_ports_device",
+          "columns": [
+            "device_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "device_ports_device_id_devices_id_fk": {
+          "name": "device_ports_device_id_devices_id_fk",
+          "tableFrom": "device_ports",
+          "tableTo": "devices",
+          "columnsFrom": [
+            "device_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "device_ports_id": {
+          "name": "device_ports_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "devices": {
+      "name": "devices",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigint unsigned",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "hostname": {
+          "name": "hostname",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "device_type": {
+          "name": "device_type",
+          "type": "varchar(60)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "vendor": {
+          "name": "vendor",
+          "type": "varchar(120)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "owner": {
+          "name": "owner",
+          "type": "varchar(120)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "location": {
+          "name": "location",
+          "type": "varchar(120)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "firmware_version": {
+          "name": "firmware_version",
+          "type": "varchar(80)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "risk_level": {
+          "name": "risk_level",
+          "type": "enum('low','medium','high','critical')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'low'"
+        },
+        "is_gateway": {
+          "name": "is_gateway",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "pos_x": {
+          "name": "pos_x",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "pos_y": {
+          "name": "pos_y",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "last_seen_UTC": {
+          "name": "last_seen_UTC",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at_UTC": {
+          "name": "created_at_UTC",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "UTC_TIMESTAMP()"
+        },
+        "updated_at_UTC": {
+          "name": "updated_at_UTC",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "UTC_TIMESTAMP()"
+        },
+        "archived_at_UTC": {
+          "name": "archived_at_UTC",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "ix_devices_risk": {
+          "name": "ix_devices_risk",
+          "columns": [
+            "risk_level"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "devices_id": {
+          "name": "devices_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "hardening_items": {
+      "name": "hardening_items",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigint unsigned",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "device_id": {
+          "name": "device_id",
+          "type": "bigint unsigned",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "control": {
+          "name": "control",
+          "type": "varchar(200)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "state": {
+          "name": "state",
+          "type": "enum('pending','done','na')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'pending'"
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "completed_at_UTC": {
+          "name": "completed_at_UTC",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at_UTC": {
+          "name": "created_at_UTC",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "UTC_TIMESTAMP()"
+        },
+        "updated_at_UTC": {
+          "name": "updated_at_UTC",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "UTC_TIMESTAMP()"
+        },
+        "archived_at_UTC": {
+          "name": "archived_at_UTC",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "ix_hardening_device": {
+          "name": "ix_hardening_device",
+          "columns": [
+            "device_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "hardening_items_device_id_devices_id_fk": {
+          "name": "hardening_items_device_id_devices_id_fk",
+          "tableFrom": "hardening_items",
+          "tableTo": "devices",
+          "columnsFrom": [
+            "device_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "hardening_items_id": {
+          "name": "hardening_items_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "ip_addresses": {
+      "name": "ip_addresses",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigint unsigned",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "subnet_id": {
+          "name": "subnet_id",
+          "type": "bigint unsigned",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "device_id": {
+          "name": "device_id",
+          "type": "bigint unsigned",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "address": {
+          "name": "address",
+          "type": "varchar(45)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "assignment_type": {
+          "name": "assignment_type",
+          "type": "enum('static','dhcp','reserved')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'dhcp'"
+        },
+        "mac_address": {
+          "name": "mac_address",
+          "type": "varchar(17)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "varchar(30)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'active'"
+        },
+        "created_at_UTC": {
+          "name": "created_at_UTC",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "UTC_TIMESTAMP()"
+        },
+        "updated_at_UTC": {
+          "name": "updated_at_UTC",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "UTC_TIMESTAMP()"
+        },
+        "archived_at_UTC": {
+          "name": "archived_at_UTC",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "addr_active": {
+          "name": "addr_active",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "generated": {
+            "as": "(case when archived_at_UTC is null then concat(subnet_id, '-', address) else null end)",
+            "type": "virtual"
+          }
+        },
+        "mac_active": {
+          "name": "mac_active",
+          "type": "varchar(17)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "generated": {
+            "as": "(case when archived_at_UTC is null then mac_address else null end)",
+            "type": "virtual"
+          }
+        }
+      },
+      "indexes": {
+        "uk_ip_addr_active": {
+          "name": "uk_ip_addr_active",
+          "columns": [
+            "addr_active"
+          ],
+          "isUnique": true
+        },
+        "uk_ip_mac_active": {
+          "name": "uk_ip_mac_active",
+          "columns": [
+            "mac_active"
+          ],
+          "isUnique": true
+        },
+        "ix_ip_subnet": {
+          "name": "ix_ip_subnet",
+          "columns": [
+            "subnet_id"
+          ],
+          "isUnique": false
+        },
+        "ix_ip_device": {
+          "name": "ix_ip_device",
+          "columns": [
+            "device_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "ip_addresses_subnet_id_subnets_id_fk": {
+          "name": "ip_addresses_subnet_id_subnets_id_fk",
+          "tableFrom": "ip_addresses",
+          "tableTo": "subnets",
+          "columnsFrom": [
+            "subnet_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "ip_addresses_device_id_devices_id_fk": {
+          "name": "ip_addresses_device_id_devices_id_fk",
+          "tableFrom": "ip_addresses",
+          "tableTo": "devices",
+          "columnsFrom": [
+            "device_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "ip_addresses_id": {
+          "name": "ip_addresses_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "links": {
+      "name": "links",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigint unsigned",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "source_device_id": {
+          "name": "source_device_id",
+          "type": "bigint unsigned",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "target_device_id": {
+          "name": "target_device_id",
+          "type": "bigint unsigned",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "link_type": {
+          "name": "link_type",
+          "type": "enum('uplink','wireless','trunk','logical')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'uplink'"
+        },
+        "label": {
+          "name": "label",
+          "type": "varchar(120)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at_UTC": {
+          "name": "created_at_UTC",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "UTC_TIMESTAMP()"
+        },
+        "updated_at_UTC": {
+          "name": "updated_at_UTC",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "UTC_TIMESTAMP()"
+        },
+        "archived_at_UTC": {
+          "name": "archived_at_UTC",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "ix_links_source": {
+          "name": "ix_links_source",
+          "columns": [
+            "source_device_id"
+          ],
+          "isUnique": false
+        },
+        "ix_links_target": {
+          "name": "ix_links_target",
+          "columns": [
+            "target_device_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "links_source_device_id_devices_id_fk": {
+          "name": "links_source_device_id_devices_id_fk",
+          "tableFrom": "links",
+          "tableTo": "devices",
+          "columnsFrom": [
+            "source_device_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "links_target_device_id_devices_id_fk": {
+          "name": "links_target_device_id_devices_id_fk",
+          "tableFrom": "links",
+          "tableTo": "devices",
+          "columnsFrom": [
+            "target_device_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "links_id": {
+          "name": "links_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "notes": {
+      "name": "notes",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigint unsigned",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "entity_type": {
+          "name": "entity_type",
+          "type": "enum('subnet','device','ip_address','scan_run')",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "entity_id": {
+          "name": "entity_id",
+          "type": "bigint unsigned",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "category": {
+          "name": "category",
+          "type": "enum('history','reference','general')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'general'"
+        },
+        "body": {
+          "name": "body",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "author": {
+          "name": "author",
+          "type": "varchar(120)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "enum('open','done')",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "priority": {
+          "name": "priority",
+          "type": "enum('low','medium','high')",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "due_at_UTC": {
+          "name": "due_at_UTC",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "done_at_UTC": {
+          "name": "done_at_UTC",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at_UTC": {
+          "name": "created_at_UTC",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "UTC_TIMESTAMP()"
+        },
+        "updated_at_UTC": {
+          "name": "updated_at_UTC",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "UTC_TIMESTAMP()"
+        },
+        "archived_at_UTC": {
+          "name": "archived_at_UTC",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "ix_notes_entity": {
+          "name": "ix_notes_entity",
+          "columns": [
+            "entity_type",
+            "entity_id"
+          ],
+          "isUnique": false
+        },
+        "ix_notes_status_due": {
+          "name": "ix_notes_status_due",
+          "columns": [
+            "status",
+            "due_at_UTC"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "notes_id": {
+          "name": "notes_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "scan_findings": {
+      "name": "scan_findings",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigint unsigned",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "run_id": {
+          "name": "run_id",
+          "type": "bigint unsigned",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "ip_address": {
+          "name": "ip_address",
+          "type": "varchar(45)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "hostname": {
+          "name": "hostname",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "port": {
+          "name": "port",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "protocol": {
+          "name": "protocol",
+          "type": "varchar(8)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'tcp'"
+        },
+        "state": {
+          "name": "state",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "service": {
+          "name": "service",
+          "type": "varchar(80)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at_UTC": {
+          "name": "created_at_UTC",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "UTC_TIMESTAMP()"
+        },
+        "updated_at_UTC": {
+          "name": "updated_at_UTC",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "UTC_TIMESTAMP()"
+        },
+        "archived_at_UTC": {
+          "name": "archived_at_UTC",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "ix_scan_findings_run": {
+          "name": "ix_scan_findings_run",
+          "columns": [
+            "run_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "scan_findings_run_id_scan_runs_id_fk": {
+          "name": "scan_findings_run_id_scan_runs_id_fk",
+          "tableFrom": "scan_findings",
+          "tableTo": "scan_runs",
+          "columnsFrom": [
+            "run_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "scan_findings_id": {
+          "name": "scan_findings_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "scan_runs": {
+      "name": "scan_runs",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigint unsigned",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "schedule_id": {
+          "name": "schedule_id",
+          "type": "bigint unsigned",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "scheduled_for_UTC": {
+          "name": "scheduled_for_UTC",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "started_at_UTC": {
+          "name": "started_at_UTC",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "finished_at_UTC": {
+          "name": "finished_at_UTC",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "enum('running','completed','failed')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'running'"
+        },
+        "hosts_scanned": {
+          "name": "hosts_scanned",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "open_ports": {
+          "name": "open_ports",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "error": {
+          "name": "error",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at_UTC": {
+          "name": "created_at_UTC",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "UTC_TIMESTAMP()"
+        },
+        "updated_at_UTC": {
+          "name": "updated_at_UTC",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "UTC_TIMESTAMP()"
+        },
+        "archived_at_UTC": {
+          "name": "archived_at_UTC",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "ix_scan_runs_schedule": {
+          "name": "ix_scan_runs_schedule",
+          "columns": [
+            "schedule_id"
+          ],
+          "isUnique": false
+        },
+        "ix_scan_runs_scheduled_for": {
+          "name": "ix_scan_runs_scheduled_for",
+          "columns": [
+            "scheduled_for_UTC"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "scan_runs_schedule_id_scan_schedules_id_fk": {
+          "name": "scan_runs_schedule_id_scan_schedules_id_fk",
+          "tableFrom": "scan_runs",
+          "tableTo": "scan_schedules",
+          "columnsFrom": [
+            "schedule_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "scan_runs_id": {
+          "name": "scan_runs_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "scan_schedules": {
+      "name": "scan_schedules",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigint unsigned",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(120)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "target_type": {
+          "name": "target_type",
+          "type": "enum('subnet','device')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "subnet_id": {
+          "name": "subnet_id",
+          "type": "bigint unsigned",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "device_id": {
+          "name": "device_id",
+          "type": "bigint unsigned",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "port_spec": {
+          "name": "port_spec",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'top100'"
+        },
+        "recurrence": {
+          "name": "recurrence",
+          "type": "enum('once','daily','weekly','monthly','quarterly')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'once'"
+        },
+        "next_run_at_UTC": {
+          "name": "next_run_at_UTC",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "enabled": {
+          "name": "enabled",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 1
+        },
+        "reminder_minutes_before": {
+          "name": "reminder_minutes_before",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "reminder_email": {
+          "name": "reminder_email",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "reminder_sent_for_UTC": {
+          "name": "reminder_sent_for_UTC",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at_UTC": {
+          "name": "created_at_UTC",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "UTC_TIMESTAMP()"
+        },
+        "updated_at_UTC": {
+          "name": "updated_at_UTC",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "UTC_TIMESTAMP()"
+        },
+        "archived_at_UTC": {
+          "name": "archived_at_UTC",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "name_active": {
+          "name": "name_active",
+          "type": "varchar(120)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "generated": {
+            "as": "(case when archived_at_UTC is null then name else null end)",
+            "type": "virtual"
+          }
+        }
+      },
+      "indexes": {
+        "uk_scan_schedules_name_active": {
+          "name": "uk_scan_schedules_name_active",
+          "columns": [
+            "name_active"
+          ],
+          "isUnique": true
+        },
+        "ix_scan_schedules_next_run": {
+          "name": "ix_scan_schedules_next_run",
+          "columns": [
+            "next_run_at_UTC"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "scan_schedules_subnet_id_subnets_id_fk": {
+          "name": "scan_schedules_subnet_id_subnets_id_fk",
+          "tableFrom": "scan_schedules",
+          "tableTo": "subnets",
+          "columnsFrom": [
+            "subnet_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "scan_schedules_device_id_devices_id_fk": {
+          "name": "scan_schedules_device_id_devices_id_fk",
+          "tableFrom": "scan_schedules",
+          "tableTo": "devices",
+          "columnsFrom": [
+            "device_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "scan_schedules_id": {
+          "name": "scan_schedules_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "subnets": {
+      "name": "subnets",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigint unsigned",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(120)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "cidr": {
+          "name": "cidr",
+          "type": "varchar(43)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "vlan_id": {
+          "name": "vlan_id",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "trust_zone": {
+          "name": "trust_zone",
+          "type": "enum('mgmt','trusted','work','iot','guest')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'trusted'"
+        },
+        "gateway": {
+          "name": "gateway",
+          "type": "varchar(45)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "dns_servers": {
+          "name": "dns_servers",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at_UTC": {
+          "name": "created_at_UTC",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "UTC_TIMESTAMP()"
+        },
+        "updated_at_UTC": {
+          "name": "updated_at_UTC",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "UTC_TIMESTAMP()"
+        },
+        "archived_at_UTC": {
+          "name": "archived_at_UTC",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "name_active": {
+          "name": "name_active",
+          "type": "varchar(120)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "generated": {
+            "as": "(case when archived_at_UTC is null then name else null end)",
+            "type": "virtual"
+          }
+        },
+        "cidr_active": {
+          "name": "cidr_active",
+          "type": "varchar(43)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "generated": {
+            "as": "(case when archived_at_UTC is null then cidr else null end)",
+            "type": "virtual"
+          }
+        }
+      },
+      "indexes": {
+        "uk_subnets_name_active": {
+          "name": "uk_subnets_name_active",
+          "columns": [
+            "name_active"
+          ],
+          "isUnique": true
+        },
+        "uk_subnets_cidr_active": {
+          "name": "uk_subnets_cidr_active",
+          "columns": [
+            "cidr_active"
+          ],
+          "isUnique": true
+        },
+        "ix_subnets_zone": {
+          "name": "ix_subnets_zone",
+          "columns": [
+            "trust_zone"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "subnets_id": {
+          "name": "subnets_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    }
+  },
+  "views": {},
+  "_meta": {
+    "schemas": {},
+    "tables": {},
+    "columns": {}
+  },
+  "internal": {
+    "tables": {},
+    "indexes": {}
+  }
+}

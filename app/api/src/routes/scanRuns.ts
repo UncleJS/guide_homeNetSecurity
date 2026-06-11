@@ -1,7 +1,7 @@
 import { Elysia, t } from "elysia";
-import { and, eq, isNull, desc, asc } from "drizzle-orm";
+import { and, eq, isNull, desc, asc, inArray, sql } from "drizzle-orm";
 import { db } from "../db/client.ts";
-import { scanRuns, scanFindings, scanSchedules } from "../db/schema.ts";
+import { scanRuns, scanFindings, scanSchedules, ipAddresses, devicePorts } from "../db/schema.ts";
 import { touch, archiveMark, restoreMark, paginate, affected } from "../lib/util.ts";
 
 export const scanRunRoutes = new Elysia({ prefix: "/scan-runs", tags: ["Scan Runs"] })
@@ -63,6 +63,90 @@ export const scanRunRoutes = new Elysia({ prefix: "/scan-runs", tags: ["Scan Run
     params: t.Object({ id: t.Numeric(), findingId: t.Numeric() }),
     body: t.Object({ notes: t.Nullable(t.String()) }),
     detail: { summary: "Annotate a finding (analyst notes)" },
+  })
+  .post("/:id/import-findings", async ({ params, body, status }) => {
+    const [run] = await db.select({ id: scanRuns.id }).from(scanRuns)
+      .where(and(eq(scanRuns.id, params.id), isNull(scanRuns.archivedAtUTC)));
+    if (!run) return status(404, { message: "Scan run not found" });
+
+    const requestedIds = [...new Set(body.findingIds ?? [])];
+    const conds = [eq(scanFindings.runId, run.id), isNull(scanFindings.archivedAtUTC)];
+    if (requestedIds.length) conds.push(inArray(scanFindings.id, requestedIds));
+    const findings = await db.select().from(scanFindings).where(and(...conds));
+    if (requestedIds.length && findings.length !== requestedIds.length)
+      return status(404, { message: "Finding not found" });
+
+    const open = findings.filter((f) => f.state === "open");
+    const skippedState = findings.length - open.length;
+
+    // Resolve each finding IP to exactly one active device; 0 or >1 matches → unmatched.
+    const ips = [...new Set(open.map((f) => f.ipAddress))];
+    const ipRows = ips.length
+      ? await db.select({ address: ipAddresses.address, deviceId: ipAddresses.deviceId })
+          .from(ipAddresses)
+          .where(and(inArray(ipAddresses.address, ips), isNull(ipAddresses.archivedAtUTC)))
+      : [];
+    const devicesByIp = new Map<string, Set<number>>();
+    for (const r of ipRows) {
+      if (r.deviceId == null) continue;
+      const set = devicesByIp.get(r.address) ?? new Set<number>();
+      set.add(r.deviceId);
+      devicesByIp.set(r.address, set);
+    }
+    const deviceForIp = new Map<string, number>();
+    const unmatched = new Set<string>();
+    for (const ip of ips) {
+      const set = devicesByIp.get(ip);
+      if (set?.size === 1) deviceForIp.set(ip, [...set][0]!);
+      else unmatched.add(ip);
+    }
+
+    const deviceIds = [...new Set(deviceForIp.values())];
+    const activePortIds = new Map<string, number>(); // "deviceId:port:protocol" -> devicePorts.id
+    if (deviceIds.length) {
+      const rows = await db.select({
+        id: devicePorts.id,
+        deviceId: devicePorts.deviceId,
+        port: devicePorts.port,
+        protocol: devicePorts.protocol,
+      }).from(devicePorts)
+        .where(and(inArray(devicePorts.deviceId, deviceIds), isNull(devicePorts.archivedAtUTC)));
+      for (const p of rows) activePortIds.set(`${p.deviceId}:${p.port}:${p.protocol}`, p.id);
+    }
+
+    let imported = 0;
+    let updated = 0;
+    for (const f of open) {
+      const deviceId = deviceForIp.get(f.ipAddress);
+      if (deviceId === undefined) continue;
+      const key = `${deviceId}:${f.port}:${f.protocol}`;
+      const existingId = activePortIds.get(key);
+      if (existingId !== undefined) {
+        // Re-seen: bump last-seen; only overwrite service when the scan identified one.
+        await db.update(devicePorts).set({
+          ...(f.service ? { service: f.service } : {}),
+          lastSeenAtUTC: sql`UTC_TIMESTAMP()` as unknown as Date,
+          ...touch(),
+        }).where(eq(devicePorts.id, existingId));
+        updated++;
+      } else {
+        const [{ id }] = await db.insert(devicePorts).values({
+          deviceId,
+          port: f.port,
+          protocol: f.protocol,
+          service: f.service,
+          source: "scan",
+          lastSeenAtUTC: sql`UTC_TIMESTAMP()` as unknown as Date,
+        }).$returningId();
+        activePortIds.set(key, id);
+        imported++;
+      }
+    }
+    return { imported, updated, skippedState, skippedUnmatched: [...unmatched].sort() };
+  }, {
+    params: t.Object({ id: t.Numeric() }),
+    body: t.Object({ findingIds: t.Optional(t.Array(t.Integer())) }),
+    detail: { summary: "Import open-port findings onto registered devices" },
   })
   .post("/:id/archive", async ({ params, status }) => {
     const res = await db.update(scanRuns).set(archiveMark())

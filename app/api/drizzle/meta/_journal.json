@@ -29,6 +29,13 @@
       "when": 1781127192824,
       "tag": "0003_legal_genesis",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1781162205036,
+      "tag": "0004_cuddly_barracuda",
+      "breakpoints": true
     }
   ]
 }

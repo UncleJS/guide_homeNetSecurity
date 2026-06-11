@@ -2,7 +2,7 @@ import { Elysia, t } from "elysia";
 import { and, eq, isNull, desc } from "drizzle-orm";
 import { db } from "../db/client.ts";
 import { devicePorts } from "../db/schema.ts";
-import { touch, archiveMark, restoreMark, paginate, isFkError, affected } from "../lib/util.ts";
+import { touch, archiveMark, restoreMark, paginate, isFkError, isDupError, affected } from "../lib/util.ts";
 
 const PortBody = t.Object({
   deviceId: t.Integer(),
@@ -38,6 +38,7 @@ export const portRoutes = new Elysia({ prefix: "/device-ports", tags: ["Device P
       const [row] = await db.select().from(devicePorts).where(eq(devicePorts.id, id));
       return row;
     } catch (e) {
+      if (isDupError(e)) return status(409, { message: "Port already exists on this device" });
       if (isFkError(e)) return status(422, { message: "Referenced device does not exist" });
       throw e;
     }
@@ -47,6 +48,7 @@ export const portRoutes = new Elysia({ prefix: "/device-ports", tags: ["Device P
       await db.update(devicePorts).set({ ...body, ...touch() })
         .where(and(eq(devicePorts.id, params.id), isNull(devicePorts.archivedAtUTC)));
     } catch (e) {
+      if (isDupError(e)) return status(409, { message: "Port already exists on this device" });
       if (isFkError(e)) return status(422, { message: "Referenced device does not exist" });
       throw e;
     }
@@ -64,7 +66,12 @@ export const portRoutes = new Elysia({ prefix: "/device-ports", tags: ["Device P
     return { archived: true };
   }, { params: t.Object({ id: t.Numeric() }), detail: { summary: "Archive a port/service" } })
   .post("/:id/restore", async ({ params, status }) => {
-    const res = await db.update(devicePorts).set(restoreMark()).where(eq(devicePorts.id, params.id));
-    if (!affected(res)) return status(404, { message: "Port not found" });
+    try {
+      const res = await db.update(devicePorts).set(restoreMark()).where(eq(devicePorts.id, params.id));
+      if (!affected(res)) return status(404, { message: "Port not found" });
+    } catch (e) {
+      if (isDupError(e)) return status(409, { message: "Cannot restore: port now conflicts with an active port on this device" });
+      throw e;
+    }
     return { restored: true };
   }, { params: t.Object({ id: t.Numeric() }), detail: { summary: "Restore a port/service" } });

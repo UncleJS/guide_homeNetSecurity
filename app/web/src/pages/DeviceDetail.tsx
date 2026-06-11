@@ -1,20 +1,25 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { apiPatch, useApi, useMutation } from "@/api/client";
-import { Button, Card, CardTitle, Select, Table, Th, Td } from "@/components/ui";
+import { apiPatch, apiPost, useApi, useMutation } from "@/api/client";
+import { Badge, Button, Card, CardTitle, Field, Input, Modal, Select, Table, Th, Td, Textarea } from "@/components/ui";
 import { Loading, ErrorState } from "@/components/states";
 import { RiskBadge } from "@/components/badges";
 import { NotesPanel } from "@/components/NotesPanel";
 import { DateTimeInput } from "@/components/DateTimeInput";
 import { Fields, fromRow, toPayload, type DeviceForm } from "@/components/DeviceForm";
-import { isoToLocalInput, localToISO } from "@/lib/format";
+import { formatLocal, isoToLocalInput, localToISO } from "@/lib/format";
+
+interface DevicePort {
+  id: number; port: number; protocol: string; service: string | null;
+  notes: string | null; source: "manual" | "scan"; lastSeenAtUTC: string | null;
+}
 
 interface DeviceFull {
   id: number; hostname: string; deviceType: string | null; vendor: string | null;
   owner: string | null; location: string | null; firmwareVersion: string | null;
   riskLevel: string; isGateway: number; lastSeenUTC: string | null;
   ips: Array<{ id: number; address: string; assignmentType: string; macAddress: string | null }>;
-  ports: Array<{ id: number; port: number; protocol: string; service: string | null }>;
+  ports: DevicePort[];
   hardening: Array<{ id: number; control: string; state: string }>;
 }
 
@@ -53,6 +58,175 @@ function DetailsCard({ device, onSaved }: { device: DeviceFull; onSaved: () => P
         {seenMut.error && <p className="mt-2 text-sm text-danger">{seenMut.error}</p>}
         <div className="mt-2"><Button onClick={saveLastSeen} disabled={seenMut.pending}>{seenMut.pending ? "Saving…" : "Save"}</Button></div>
       </div>
+    </Card>
+  );
+}
+
+type PortForm = { port: string; protocol: string; service: string; notes: string };
+
+const PORT_FORM_EMPTY: PortForm = { port: "", protocol: "tcp", service: "", notes: "" };
+
+const portPayload = (deviceId: number, f: PortForm) => ({
+  deviceId,
+  port: Number(f.port),
+  protocol: f.protocol,
+  service: f.service || null,
+  notes: f.notes || null,
+});
+
+const portFormFromRow = (p: DevicePort): PortForm => ({
+  port: String(p.port),
+  protocol: p.protocol,
+  service: p.service ?? "",
+  notes: p.notes ?? "",
+});
+
+function PortFields({ value, set }: { value: PortForm; set: (f: PortForm) => void }) {
+  return (
+    <div className="grid gap-x-4 md:grid-cols-2">
+      <Field label="Port">
+        <Input type="number" min={0} max={65535} value={value.port} onChange={(e) => set({ ...value, port: e.target.value })} placeholder="443" className="font-mono" />
+      </Field>
+      <Field label="Protocol">
+        <Select value={value.protocol} onChange={(e) => set({ ...value, protocol: e.target.value })}>
+          <option value="tcp">tcp</option>
+          <option value="udp">udp</option>
+        </Select>
+      </Field>
+      <Field label="Service (optional)">
+        <Input value={value.service} onChange={(e) => set({ ...value, service: e.target.value })} placeholder="https" />
+      </Field>
+      <Field label="Notes (optional)">
+        <Textarea value={value.notes} onChange={(e) => set({ ...value, notes: e.target.value })} placeholder="e.g. Grafana container published on this port" />
+      </Field>
+    </div>
+  );
+}
+
+function PortsCard({ deviceId, ports, onSaved }: { deviceId: number; ports: DevicePort[]; onSaved: () => Promise<void> }) {
+  const [adding, setAdding] = useState(false);
+  const [addForm, setAddForm] = useState<PortForm>(PORT_FORM_EMPTY);
+  const addMut = useMutation();
+
+  const [editing, setEditing] = useState<DevicePort | null>(null);
+  const [editForm, setEditForm] = useState<PortForm>(PORT_FORM_EMPTY);
+  const editMut = useMutation();
+
+  const [archiving, setArchiving] = useState<DevicePort | null>(null);
+  const archiveMut = useMutation();
+
+  async function create() {
+    const ok = await addMut.run(async () => {
+      await apiPost("/device-ports", portPayload(deviceId, addForm));
+      await onSaved();
+    });
+    if (ok) {
+      setAdding(false);
+      setAddForm(PORT_FORM_EMPTY);
+    }
+  }
+
+  function openEdit(p: DevicePort) {
+    setEditing(p);
+    setEditForm(portFormFromRow(p));
+  }
+
+  async function saveEdit() {
+    if (!editing) return;
+    const ok = await editMut.run(async () => {
+      await apiPatch(`/device-ports/${editing.id}`, portPayload(deviceId, editForm));
+      await onSaved();
+    });
+    if (ok) setEditing(null);
+  }
+
+  async function confirmArchive() {
+    if (!archiving) return;
+    const ok = await archiveMut.run(async () => {
+      await apiPost(`/device-ports/${archiving.id}/archive`, {});
+      await onSaved();
+    });
+    if (ok) setArchiving(null);
+  }
+
+  return (
+    <Card>
+      <div className="mb-3 flex items-center justify-between">
+        <CardTitle>Open ports / services</CardTitle>
+        <Button variant="outline" className="h-7 px-2 text-xs" onClick={() => setAdding(true)}>Add port</Button>
+      </div>
+      {archiveMut.error && <p className="mb-2 text-sm text-danger">{archiveMut.error}</p>}
+      {ports.length === 0 ? <p className="text-sm text-foreground opacity-80">No ports recorded.</p> : (
+        <Table>
+          <thead><tr><Th>Port</Th><Th>Proto</Th><Th>Service</Th><Th>Source</Th><Th>Last seen</Th><Th className="text-right">Actions</Th></tr></thead>
+          <tbody>
+            {ports.map((p) => (
+              <tr key={p.id}>
+                <Td className="font-mono">{p.port}</Td>
+                <Td>{p.protocol}</Td>
+                <Td>{p.service ?? "—"}</Td>
+                <Td><Badge className={p.source === "scan" ? "border-primary" : ""}>{p.source}</Badge></Td>
+                <Td>{formatLocal(p.lastSeenAtUTC)}</Td>
+                <Td className="text-right">
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" className="h-7 px-2 text-xs" onClick={() => openEdit(p)}>Edit</Button>
+                    <Button variant="ghost" className="h-7 px-2 text-xs" onClick={() => setArchiving(p)}>Archive</Button>
+                  </div>
+                </Td>
+              </tr>
+            ))}
+          </tbody>
+        </Table>
+      )}
+
+      <Modal
+        open={adding}
+        onClose={() => setAdding(false)}
+        title="Add port"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setAdding(false)}>Cancel</Button>
+            <Button onClick={create} disabled={addMut.pending || !addForm.port}>{addMut.pending ? "Saving…" : "Add port"}</Button>
+          </>
+        }
+      >
+        <PortFields value={addForm} set={setAddForm} />
+        {addMut.error && <p className="text-sm text-danger">{addMut.error}</p>}
+      </Modal>
+
+      <Modal
+        open={editing !== null}
+        onClose={() => setEditing(null)}
+        title={editing ? `Edit ${editing.protocol}/${editing.port}` : "Edit port"}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setEditing(null)}>Cancel</Button>
+            <Button onClick={saveEdit} disabled={editMut.pending || !editForm.port}>{editMut.pending ? "Saving…" : "Save changes"}</Button>
+          </>
+        }
+      >
+        <PortFields value={editForm} set={setEditForm} />
+        {editMut.error && <p className="text-sm text-danger">{editMut.error}</p>}
+      </Modal>
+
+      <Modal
+        open={archiving !== null}
+        onClose={() => setArchiving(null)}
+        title={archiving ? `Archive ${archiving.protocol}/${archiving.port}?` : "Archive port"}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setArchiving(null)}>Cancel</Button>
+            <Button onClick={confirmArchive} disabled={archiveMut.pending}>{archiveMut.pending ? "Archiving…" : "Archive"}</Button>
+          </>
+        }
+      >
+        <p className="text-sm text-foreground">
+          This removes <span className="font-mono">{archiving?.protocol}/{archiving?.port}</span>
+          {archiving?.service ? <> ({archiving.service})</> : null} from the device&apos;s port list.
+          It is archived, not deleted.
+        </p>
+        {archiveMut.error && <p className="mt-2 text-sm text-danger">{archiveMut.error}</p>}
+      </Modal>
     </Card>
   );
 }
@@ -121,19 +295,7 @@ export function DeviceDetail() {
             </Table>
           )}
         </Card>
-        <Card>
-          <CardTitle className="mb-3">Open ports / services</CardTitle>
-          {data.ports.length === 0 ? <p className="text-sm text-foreground opacity-80">No ports recorded.</p> : (
-            <Table>
-              <thead><tr><Th>Port</Th><Th>Proto</Th><Th>Service</Th></tr></thead>
-              <tbody>
-                {data.ports.map((p) => (
-                  <tr key={p.id}><Td className="font-mono">{p.port}</Td><Td>{p.protocol}</Td><Td>{p.service ?? "—"}</Td></tr>
-                ))}
-              </tbody>
-            </Table>
-          )}
-        </Card>
+        <PortsCard deviceId={data.id} ports={data.ports} onSaved={refetch} />
       </div>
 
       <NotesPanel entityType="device" entityId={data.id} />

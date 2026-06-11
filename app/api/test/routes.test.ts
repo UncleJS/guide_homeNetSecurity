@@ -408,6 +408,87 @@ describe("scan runs (run-now without nmap dependency)", () => {
   });
 });
 
+describe("import scan findings onto devices", () => {
+  let deviceId: number;
+  let runId: number;
+  let openFindingId: number;
+  const REGISTERED_IP = "10.94.0.10";
+  const UNREGISTERED_IP = "10.94.0.99";
+
+  // The scanner is the only findings writer, so fixtures go straight into the DB.
+  async function insertFinding(ip: string, port: number, state: string, service: string | null) {
+    const [res] = await pool.query(
+      "INSERT INTO scan_findings (run_id, ip_address, port, protocol, state, service) VALUES (?, ?, ?, 'tcp', ?, ?)",
+      [runId, ip, port, state, service],
+    );
+    return (res as { insertId: number }).insertId;
+  }
+
+  beforeAll(async () => {
+    const s = await call("POST", "/subnets", { name: "Import test net", cidr: "10.94.0.0/24" });
+    const d = await call("POST", "/devices", { hostname: "import-host" });
+    deviceId = d.body.id;
+    await call("POST", "/ip-addresses", { subnetId: s.body.id, deviceId, address: REGISTERED_IP });
+    const sched = await call("POST", "/schedules", {
+      name: "Import test sweep", targetType: "subnet", subnetId: s.body.id,
+      nextRunAtUTC: new Date(Date.now() + 86_400_000).toISOString(),
+    });
+    const [run] = await pool.query(
+      "INSERT INTO scan_runs (schedule_id, scheduled_for_UTC, status) VALUES (?, UTC_TIMESTAMP(), 'completed')",
+      [sched.body.id],
+    );
+    runId = (run as { insertId: number }).insertId;
+    openFindingId = await insertFinding(REGISTERED_IP, 22, "open", "ssh");
+    await insertFinding(REGISTERED_IP, 80, "open", null);
+    await insertFinding(UNREGISTERED_IP, 443, "open", "https");
+    await insertFinding(REGISTERED_IP, 23, "closed", null);
+  });
+
+  it("bulk import creates ports for matched IPs and reports the rest", async () => {
+    const r = await call("POST", `/scan-runs/${runId}/import-findings`, {});
+    expect(r.status).toBe(200);
+    expect(r.body).toEqual({
+      imported: 2, updated: 0, skippedState: 1, skippedUnmatched: [UNREGISTERED_IP],
+    });
+    const ports = await call("GET", `/device-ports?deviceId=${deviceId}`);
+    const ssh = ports.body.data.find((p: { port: number }) => p.port === 22);
+    expect(ssh.source).toBe("scan");
+    expect(ssh.service).toBe("ssh");
+    expect(ssh.lastSeenAtUTC).not.toBeNull();
+    expect(ports.body.data.some((p: { port: number }) => p.port === 443)).toBe(false);
+  });
+
+  it("re-import updates instead of duplicating", async () => {
+    const r = await call("POST", `/scan-runs/${runId}/import-findings`, {});
+    expect(r.body.imported).toBe(0);
+    expect(r.body.updated).toBe(2);
+    const ports = await call("GET", `/device-ports?deviceId=${deviceId}`);
+    expect(ports.body.data.filter((p: { port: number }) => p.port === 22).length).toBe(1);
+  });
+
+  it("imports a single finding by id", async () => {
+    const r = await call("POST", `/scan-runs/${runId}/import-findings`, { findingIds: [openFindingId] });
+    expect(r.body).toEqual({ imported: 0, updated: 1, skippedState: 0, skippedUnmatched: [] });
+  });
+
+  it("404s an unknown finding id or run id", async () => {
+    expect((await call("POST", `/scan-runs/${runId}/import-findings`, { findingIds: [999999] })).status).toBe(404);
+    expect((await call("POST", "/scan-runs/999999/import-findings", {})).status).toBe(404);
+  });
+
+  it("409s a manual duplicate of an imported port", async () => {
+    const r = await call("POST", "/device-ports", { deviceId, port: 22, protocol: "tcp" });
+    expect(r.status).toBe(409);
+  });
+
+  it("manual registration defaults to source=manual with no last-seen", async () => {
+    const r = await call("POST", "/device-ports", { deviceId, port: 8080, service: "grafana", notes: "container app" });
+    expect(r.status).toBe(200);
+    expect(r.body.source).toBe("manual");
+    expect(r.body.lastSeenAtUTC).toBeNull();
+  });
+});
+
 describe("notes (polymorphic target must exist)", () => {
   let deviceId: number;
   let noteId: number;

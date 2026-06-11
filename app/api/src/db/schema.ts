@@ -35,6 +35,7 @@ export const LINK_TYPES = ["uplink", "wireless", "trunk", "logical"] as const;
 export const SCAN_RECURRENCES = ["once", "daily", "weekly", "monthly", "quarterly"] as const;
 export const SCAN_TARGET_TYPES = ["subnet", "device"] as const;
 export const SCAN_RUN_STATUSES = ["running", "completed", "failed"] as const;
+export const PORT_SOURCES = ["manual", "scan"] as const;
 
 // Subnets / VLANs ------------------------------------------------------------
 export const subnets = mysqlTable("subnets", {
@@ -132,8 +133,16 @@ export const devicePorts = mysqlTable("device_ports", {
   protocol: varchar("protocol", { length: 8 }).notNull().default("tcp"),
   service: varchar("service", { length: 80 }),
   notes: text("notes"),
+  source: mysqlEnum("source", PORT_SOURCES).notNull().default("manual"),
+  lastSeenAtUTC: datetime("last_seen_at_UTC"), // null = never confirmed by a scan
   ...lifecycle,
+  // (device, port, protocol) unique among active rows
+  devicePortActive: varchar("device_port_active", { length: 64 }).generatedAlwaysAs(
+    sql`(case when archived_at_UTC is null then concat(device_id, '-', port, '-', protocol) else null end)`,
+    { mode: "virtual" },
+  ),
 }, (t) => ({
+  devicePortActiveUk: uniqueIndex("uk_device_port_active").on(t.devicePortActive),
   deviceIx: index("ix_ports_device").on(t.deviceId),
 }));
 
