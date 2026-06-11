@@ -29,7 +29,23 @@ export function buildPortArgs(spec: string): string[] {
   return ["-p", spec];
 }
 
+// Upper bound on the number of ports a spec probes (overlapping ranges are
+// not deduped); sizes the per-host timeout below.
+export function countPorts(spec: string): number {
+  if (spec === "top100") return 100;
+  if (spec === "top1000") return 1000;
+  let total = 0;
+  for (const part of spec.split(",")) {
+    const [lo, hi] = part.split("-");
+    total += hi === undefined ? 1 : Math.abs(Number(hi) - Number(lo)) + 1;
+  }
+  return total;
+}
+
 export function buildNmapArgs(targets: string[], portSpec: string, singleHost: boolean): string[] {
+  // ~1s per 50 ports at the capped parallelism, min 90s. Nmap silently drops
+  // a host's entire results when --host-timeout trips, so err generous.
+  const hostTimeoutS = Math.max(90, Math.ceil(countPorts(portSpec) / 50));
   return [
     "-sT",
     // Containers run as uid 0 without CAP_NET_RAW, so nmap would assume it is
@@ -37,7 +53,12 @@ export function buildNmapArgs(targets: string[], portSpec: string, singleHost: b
     // ("dnet: Failed to open device ..."). Declare unprivileged explicitly.
     "--unprivileged",
     "-T4",
-    "--host-timeout", "90s",
+    // -T4's connect() flood saturates pasta's user-mode flow table, making
+    // open ports nondeterministically appear closed. Capping at 32 parallel
+    // probes keeps full-range results stable, at the cost of scan speed.
+    "--max-parallelism", "32",
+    "--max-retries", "4",
+    "--host-timeout", `${hostTimeoutS}s`,
     ...buildPortArgs(portSpec),
     // Subnet sweeps use unprivileged TCP connect host discovery; a single
     // (possibly firewalled) host gets -Pn so it is port-scanned regardless.

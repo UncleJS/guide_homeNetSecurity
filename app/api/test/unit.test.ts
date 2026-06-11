@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { ipv4Capacity } from "../src/lib/net.ts";
 import { paginate } from "../src/lib/util.ts";
 import { DEFAULT_HARDENING_CONTROLS } from "../src/lib/hardening.ts";
-import { buildPortArgs, buildNmapArgs, isValidPortSpec, parseGrepable } from "../src/lib/scanner.ts";
+import { buildPortArgs, buildNmapArgs, countPorts, isValidPortSpec, parseGrepable } from "../src/lib/scanner.ts";
 import { advance } from "../src/lib/scheduler.ts";
 import { ipv4InCidr } from "../src/lib/net.ts";
 
@@ -81,6 +81,24 @@ describe("port specs", () => {
   it("always declares unprivileged mode (rootless pod has no CAP_NET_RAW)", () => {
     expect(buildNmapArgs(["192.168.1.5"], "top100", true)).toContain("--unprivileged");
     expect(buildNmapArgs(["192.168.1.0/24"], "top100", false)).toContain("--unprivileged");
+  });
+
+  it("counts ports in a spec", () => {
+    expect(countPorts("top100")).toBe(100);
+    expect(countPorts("top1000")).toBe(1000);
+    expect(countPorts("22,80,443")).toBe(3);
+    expect(countPorts("1-65535")).toBe(65535);
+    expect(countPorts("1-1024,8080")).toBe(1025);
+  });
+
+  it("caps parallelism so pasta's flow table is not saturated", () => {
+    const args = buildNmapArgs(["192.168.1.5"], "1-65535", true);
+    expect(args.join(" ")).toContain("--max-parallelism 32");
+  });
+
+  it("scales host-timeout with the number of ports", () => {
+    expect(buildNmapArgs(["192.168.1.5"], "top100", true).join(" ")).toContain("--host-timeout 90s");
+    expect(buildNmapArgs(["192.168.1.5"], "1-65535", true).join(" ")).toContain("--host-timeout 1311s");
   });
 });
 
