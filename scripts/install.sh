@@ -13,9 +13,9 @@ if [[ ! -f .env ]]; then
 fi
 
 echo "==> Building production images"
-podman build -f Containerfile.api -t "localhost/${PROJECT_NAME}-api:latest" .
-podman build -f Containerfile.web -t "localhost/${PROJECT_NAME}-web:latest" .
-podman build -f Containerfile.dev -t "${PROJECT_NAME}-dev:latest" .
+podman build -f containers/Containerfile.api -t "localhost/${PROJECT_NAME}-api:latest" .
+podman build -f containers/Containerfile.web -t "localhost/${PROJECT_NAME}-web:latest" .
+podman build -f containers/Containerfile.dev -t "${PROJECT_NAME}-dev:latest" .
 
 echo "==> Installing PROD Quadlet units to ${QUADLET_DST}"
 # Deploy only prod units. The dev container shares the pod's ports (11290/11291),

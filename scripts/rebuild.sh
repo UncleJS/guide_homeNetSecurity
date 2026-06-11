@@ -29,12 +29,12 @@ if [[ ! -f .env ]]; then
 fi
 
 echo "==> Rebuilding production images"
-podman build -f Containerfile.api -t "localhost/${PROJECT_NAME}-api:latest" .
-podman build -f Containerfile.web -t "localhost/${PROJECT_NAME}-web:latest" .
+podman build -f containers/Containerfile.api -t "localhost/${PROJECT_NAME}-api:latest" .
+podman build -f containers/Containerfile.web -t "localhost/${PROJECT_NAME}-web:latest" .
 
 if [[ "$BUILD_DEV" == "1" ]]; then
   echo "==> Rebuilding dev image"
-  podman build -f Containerfile.dev -t "${PROJECT_NAME}-dev:latest" .
+  podman build -f containers/Containerfile.dev -t "${PROJECT_NAME}-dev:latest" .
 fi
 
 if [[ "$RESTART" == "1" ]]; then

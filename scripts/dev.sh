@@ -21,7 +21,7 @@ if [[ -f "${STALE_ENV}" ]]; then
   exit 1
 fi
 
-podman build -f Containerfile.dev -t "${PROJECT_NAME}-dev:latest" .
+podman build -f containers/Containerfile.dev -t "${PROJECT_NAME}-dev:latest" .
 systemctl --user restart "${PROJECT_NAME}-dev" 2>/dev/null || \
   echo "Dev unit not installed yet — run scripts/install.sh first."
 echo "Dev container image rebuilt."
