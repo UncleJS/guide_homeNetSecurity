@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { apiPatch, apiPost, useApi, useMutation } from "@/api/client";
-import { Badge, Button, Card, CardTitle, Field, Input, Modal, Select, Table, Th, Td } from "@/components/ui";
+import { Badge, Button, Card, CardTitle, Field, Input, Modal, Select, Table, Textarea, Th, Td } from "@/components/ui";
 import { Loading, ErrorState } from "@/components/states";
 import { RiskBadge } from "@/components/badges";
 import { NotesPanel } from "@/components/NotesPanel";
@@ -11,6 +11,7 @@ import { formatLocal, isoToLocalInput, localToISO } from "@/lib/format";
 
 interface DevicePort {
   id: number; port: number; protocol: string; service: string | null;
+  notes: string | null;
   source: "manual" | "scan"; lastSeenAtUTC: string | null;
   ipAddressId: number | null;
 }
@@ -65,18 +66,19 @@ function DetailsCard({ device, onSaved }: { device: DeviceFull; onSaved: () => P
   );
 }
 
-type PortForm = { port: string; protocol: string; service: string; ipAddressId: string };
+type PortForm = { port: string; protocol: string; service: string; ipAddressId: string; notes: string };
 
-const PORT_FORM_EMPTY: PortForm = { port: "", protocol: "tcp", service: "", ipAddressId: "" };
+const PORT_FORM_EMPTY: PortForm = { port: "", protocol: "tcp", service: "", ipAddressId: "", notes: "" };
 
-// Notes are deliberately absent: a port's note is managed solely from the
-// IP Addresses drilldown. PATCH is partial, so edits here never clobber it.
+// The edit form pre-loads the current note (portFormFromRow) and sends it back,
+// so saving here never clobbers a note set from the IP Addresses drilldown.
 const portPayload = (deviceId: number, f: PortForm) => ({
   deviceId,
   ipAddressId: f.ipAddressId ? Number(f.ipAddressId) : null,
   port: Number(f.port),
   protocol: f.protocol,
   service: f.service || null,
+  notes: f.notes || null,
 });
 
 const portFormFromRow = (p: DevicePort): PortForm => ({
@@ -84,6 +86,7 @@ const portFormFromRow = (p: DevicePort): PortForm => ({
   protocol: p.protocol,
   service: p.service ?? "",
   ipAddressId: p.ipAddressId != null ? String(p.ipAddressId) : "",
+  notes: p.notes ?? "",
 });
 
 function PortFields({ value, set, ips }: { value: PortForm; set: (f: PortForm) => void; ips: DeviceIp[] }) {
@@ -107,6 +110,15 @@ function PortFields({ value, set, ips }: { value: PortForm; set: (f: PortForm) =
       <Field label="Service (optional)">
         <Input value={value.service} onChange={(e) => set({ ...value, service: e.target.value })} placeholder="https" />
       </Field>
+      <div className="md:col-span-2">
+        <Field label="Notes">
+          <Textarea
+            value={value.notes}
+            onChange={(e) => set({ ...value, notes: e.target.value })}
+            placeholder="What runs here? Action needed? e.g. “Grafana container — restrict to mgmt VLAN.”"
+          />
+        </Field>
+      </div>
     </div>
   );
 }
@@ -118,13 +130,14 @@ function PortRows({ ports, onEdit, onArchive }: {
 }) {
   return (
     <Table>
-      <thead><tr><Th>Port</Th><Th>Proto</Th><Th>Service</Th><Th>Source</Th><Th>Last seen</Th><Th className="text-right">Actions</Th></tr></thead>
+      <thead><tr><Th>Port</Th><Th>Proto</Th><Th>Service</Th><Th>Notes</Th><Th>Source</Th><Th>Last seen</Th><Th className="text-right">Actions</Th></tr></thead>
       <tbody>
         {ports.map((p) => (
           <tr key={p.id}>
             <Td className="font-mono">{p.port}</Td>
             <Td>{p.protocol}</Td>
             <Td>{p.service ?? "—"}</Td>
+            <Td className="max-w-64"><span className="block truncate" title={p.notes ?? undefined}>{p.notes ?? "—"}</span></Td>
             <Td><Badge className={p.source === "scan" ? "border-primary" : ""}>{p.source}</Badge></Td>
             <Td>{formatLocal(p.lastSeenAtUTC)}</Td>
             <Td className="text-right">
