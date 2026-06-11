@@ -118,10 +118,15 @@ export function IpAddresses() {
   }
 
   const rowMut = useMutation();
-  const archive = (id: number) => rowMut.run(async () => {
-    await apiPost(`/ip-addresses/${id}/archive`, {});
-    await ips.refetch();
-  });
+  const [releasing, setReleasing] = useState<Ip | null>(null);
+  async function confirmRelease() {
+    if (!releasing) return;
+    const ok = await rowMut.run(async () => {
+      await apiPost(`/ip-addresses/${releasing.id}/archive`, {});
+      await ips.refetch();
+    });
+    if (ok) setReleasing(null);
+  }
   const restore = (id: number) => rowMut.run(async () => {
     await apiPost(`/ip-addresses/${id}/restore`, {});
     await ips.refetch();
@@ -169,7 +174,7 @@ export function IpAddresses() {
                       ) : (
                         <>
                           <Button variant="outline" className="h-7 px-2 text-xs" onClick={() => openEdit(ip)}>Edit</Button>
-                          <Button variant="ghost" className="h-7 px-2 text-xs" onClick={() => archive(ip.id)}>Release</Button>
+                          <Button variant="ghost" className="h-7 px-2 text-xs" onClick={() => setReleasing(ip)}>Release</Button>
                         </>
                       )}
                     </div>
@@ -194,6 +199,25 @@ export function IpAddresses() {
       >
         <Fields value={editForm} set={setEditForm} subnets={subnetList} devices={deviceList} />
         {editError && <p className="text-sm text-danger">{editError}</p>}
+      </Modal>
+
+      <Modal
+        open={releasing !== null}
+        onClose={() => setReleasing(null)}
+        title={releasing ? `Release ${releasing.address}?` : "Release IP"}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setReleasing(null)}>Cancel</Button>
+            <Button onClick={confirmRelease} disabled={rowMut.pending}>{rowMut.pending ? "Releasing…" : "Release"}</Button>
+          </>
+        }
+      >
+        <p className="text-sm text-foreground">
+          This releases the allocation for <span className="font-mono">{releasing?.address}</span>
+          {releasing?.deviceId != null ? <> (assigned to {deviceName(releasing.deviceId)})</> : null}.
+          It is archived, not deleted — restore it any time via “Show archived”.
+        </p>
+        {rowMut.error && <p className="mt-2 text-sm text-danger">{rowMut.error}</p>}
       </Modal>
     </div>
   );

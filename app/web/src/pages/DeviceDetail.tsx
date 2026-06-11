@@ -6,7 +6,8 @@ import { Loading, ErrorState } from "@/components/states";
 import { RiskBadge } from "@/components/badges";
 import { NotesPanel } from "@/components/NotesPanel";
 import { DateTimeInput } from "@/components/DateTimeInput";
-import { formatLocal, isoToLocalInput, localToISO } from "@/lib/format";
+import { Fields, fromRow, toPayload, type DeviceForm } from "@/components/DeviceForm";
+import { isoToLocalInput, localToISO } from "@/lib/format";
 
 interface DeviceFull {
   id: number; hostname: string; deviceType: string | null; vendor: string | null;
@@ -19,19 +20,52 @@ interface DeviceFull {
 
 const STATES = ["pending", "done", "na"];
 
+function DetailsCard({ device, onSaved }: { device: DeviceFull; onSaved: () => Promise<void> }) {
+  const [form, setForm] = useState<DeviceForm>(fromRow(device));
+  const saveMut = useMutation();
+  const [lastSeen, setLastSeen] = useState<string | null>(null);
+  const seenMut = useMutation();
+  const seenValue = lastSeen ?? isoToLocalInput(device.lastSeenUTC);
+
+  const save = () => saveMut.run(async () => {
+    await apiPatch(`/devices/${device.id}`, toPayload(form));
+    await onSaved();
+  });
+
+  async function saveLastSeen() {
+    const ok = await seenMut.run(async () => {
+      const iso = seenValue ? localToISO(seenValue) : null;
+      await apiPatch(`/devices/${device.id}`, { lastSeenUTC: iso });
+      await onSaved();
+    });
+    if (ok) setLastSeen(null);
+  }
+
+  return (
+    <Card>
+      <CardTitle className="mb-3">Details</CardTitle>
+      <Fields form={form} setForm={setForm} />
+      {saveMut.error && <p className="mb-2 text-sm text-danger">{saveMut.error}</p>}
+      <Button onClick={save} disabled={saveMut.pending || !form.hostname}>{saveMut.pending ? "Saving…" : "Save changes"}</Button>
+      <div className="mt-4">
+        <CardTitle className="mb-2">Update last seen</CardTitle>
+        <DateTimeInput value={seenValue} onChange={setLastSeen} />
+        {seenMut.error && <p className="mt-2 text-sm text-danger">{seenMut.error}</p>}
+        <div className="mt-2"><Button onClick={saveLastSeen} disabled={seenMut.pending}>{seenMut.pending ? "Saving…" : "Save"}</Button></div>
+      </div>
+    </Card>
+  );
+}
+
 export function DeviceDetail() {
   const { id } = useParams();
   const { data, loading, error, refetch } = useApi<DeviceFull>(`/devices/${id}`);
-  const [lastSeen, setLastSeen] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<number | null>(null);
   const toggleMut = useMutation();
-  const seenMut = useMutation();
 
   if (loading) return <Loading />;
   if (error) return <ErrorState message={error} onRetry={refetch} />;
   if (!data) return null;
-
-  const seenValue = lastSeen ?? isoToLocalInput(data.lastSeenUTC);
 
   async function toggle(itemId: number, state: string) {
     setTogglingId(itemId);
@@ -41,14 +75,6 @@ export function DeviceDetail() {
         await refetch();
       });
     } finally { setTogglingId(null); }
-  }
-  async function saveLastSeen() {
-    const ok = await seenMut.run(async () => {
-      const iso = seenValue ? localToISO(seenValue) : null;
-      await apiPatch(`/devices/${id}`, { lastSeenUTC: iso });
-      await refetch();
-    });
-    if (ok) setLastSeen(null);
   }
 
   const doneCount = data.hardening.filter((h) => h.state === "done").length;
@@ -63,23 +89,7 @@ export function DeviceDetail() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardTitle className="mb-3">Details</CardTitle>
-          <dl className="grid grid-cols-2 gap-y-2 text-sm text-foreground">
-            <dt className="opacity-80">Type</dt><dd>{data.deviceType ?? "—"}</dd>
-            <dt className="opacity-80">Vendor</dt><dd>{data.vendor ?? "—"}</dd>
-            <dt className="opacity-80">Owner</dt><dd>{data.owner ?? "—"}</dd>
-            <dt className="opacity-80">Location</dt><dd>{data.location ?? "—"}</dd>
-            <dt className="opacity-80">Firmware</dt><dd>{data.firmwareVersion ?? "—"}</dd>
-            <dt className="opacity-80">Last seen</dt><dd>{formatLocal(data.lastSeenUTC)}</dd>
-          </dl>
-          <div className="mt-4">
-            <CardTitle className="mb-2">Update last seen</CardTitle>
-            <DateTimeInput value={seenValue} onChange={setLastSeen} />
-            {seenMut.error && <p className="mt-2 text-sm text-danger">{seenMut.error}</p>}
-            <div className="mt-2"><Button onClick={saveLastSeen} disabled={seenMut.pending}>{seenMut.pending ? "Saving…" : "Save"}</Button></div>
-          </div>
-        </Card>
+        <DetailsCard key={data.id} device={data} onSaved={refetch} />
 
         <Card>
           <CardTitle className="mb-3">Hardening checklist ({doneCount}/{data.hardening.length})</CardTitle>

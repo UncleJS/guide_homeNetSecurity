@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { apiPost, useApi, useMutation } from "@/api/client";
+import { apiPatch, apiPost, useApi, useMutation } from "@/api/client";
 import { Badge, Button, Card, CardTitle, Table, Th, Td } from "@/components/ui";
 import { Loading, ErrorState, Empty } from "@/components/states";
 import { formatLocal } from "@/lib/format";
+import { Fields, formReady, fromRow, toPayload, type ScheduleForm } from "@/components/ScheduleForm";
 import { RUN_STATUS_CLASS, type Schedule } from "./Schedules.tsx";
 
 interface Run {
@@ -13,9 +15,37 @@ interface Run {
 
 type ScheduleFull = Omit<Schedule, "lastRunStatus" | "lastRunAtUTC"> & { runs: Run[] };
 
+function ScheduleCard({
+  schedule, subnets, devices, onSaved,
+}: {
+  schedule: ScheduleFull;
+  subnets: { id: number; name: string; cidr: string }[];
+  devices: { id: number; hostname: string }[];
+  onSaved: () => Promise<void>;
+}) {
+  const [form, setForm] = useState<ScheduleForm>(fromRow(schedule));
+  const saveMut = useMutation();
+
+  const save = () => saveMut.run(async () => {
+    await apiPatch(`/schedules/${schedule.id}`, toPayload(form));
+    await onSaved();
+  });
+
+  return (
+    <Card>
+      <CardTitle className="mb-3">Schedule</CardTitle>
+      <Fields form={form} setForm={setForm} subnets={subnets} devices={devices} />
+      {saveMut.error && <p className="mb-2 text-sm text-danger">{saveMut.error}</p>}
+      <Button onClick={save} disabled={saveMut.pending || !formReady(form)}>{saveMut.pending ? "Saving…" : "Save changes"}</Button>
+    </Card>
+  );
+}
+
 export function ScheduleDetail() {
   const { id } = useParams();
   const { data, loading, error, refetch } = useApi<ScheduleFull>(`/schedules/${id}`);
+  const { data: subnetData } = useApi<{ data: { id: number; name: string; cidr: string }[] }>("/subnets?pageSize=200");
+  const { data: deviceData } = useApi<{ data: { id: number; hostname: string }[] }>("/devices?pageSize=200");
   const navigate = useNavigate();
   const runMut = useMutation();
 
@@ -39,18 +69,13 @@ export function ScheduleDetail() {
       </div>
       {runMut.error && <p className="text-sm text-danger">{runMut.error}</p>}
 
-      <Card>
-        <CardTitle className="mb-3">Schedule</CardTitle>
-        <dl className="grid gap-x-6 gap-y-2 text-sm md:grid-cols-3">
-          <div><dt className="font-medium text-foreground opacity-80">Target</dt><dd className="text-foreground">{data.targetType} #{data.targetType === "subnet" ? data.subnetId : data.deviceId}</dd></div>
-          <div><dt className="font-medium text-foreground opacity-80">Ports</dt><dd className="font-mono text-foreground">{data.portSpec}</dd></div>
-          <div><dt className="font-medium text-foreground opacity-80">Recurrence</dt><dd className="text-foreground">{data.recurrence}</dd></div>
-          <div><dt className="font-medium text-foreground opacity-80">Next run</dt><dd className="text-foreground">{formatLocal(data.nextRunAtUTC)}</dd></div>
-          <div><dt className="font-medium text-foreground opacity-80">Reminder</dt><dd className="text-foreground">{data.reminderMinutesBefore != null && data.reminderEmail ? `${data.reminderMinutesBefore} min before → ${data.reminderEmail}` : "off"}</dd></div>
-          <div><dt className="font-medium text-foreground opacity-80">Enabled</dt><dd>{data.enabled === 1 ? <Badge className="border-success">on</Badge> : <Badge>off</Badge>}</dd></div>
-        </dl>
-        {data.description && <p className="mt-3 text-sm text-foreground">{data.description}</p>}
-      </Card>
+      <ScheduleCard
+        key={data.id}
+        schedule={data}
+        subnets={subnetData?.data ?? []}
+        devices={deviceData?.data ?? []}
+        onSaved={refetch}
+      />
 
       <Card>
         <CardTitle className="mb-3">Recent runs</CardTitle>

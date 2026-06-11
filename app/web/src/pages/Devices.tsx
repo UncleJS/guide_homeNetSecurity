@@ -1,13 +1,10 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
-import { apiPatch, apiPost, useApi, useMutation } from "@/api/client";
-import {
-  Button, Card, CardTitle, Checkbox, Field, Input, Modal, Select, Table, Th, Td,
-} from "@/components/ui";
+import { useNavigate } from "react-router-dom";
+import { apiPost, useApi, useMutation } from "@/api/client";
+import { Button, Card, CardTitle, Checkbox, Select, Table, Th, Td } from "@/components/ui";
 import { Loading, ErrorState, Empty } from "@/components/states";
 import { RiskBadge } from "@/components/badges";
-
-const RISKS = ["low", "medium", "high", "critical"];
+import { EMPTY, Fields, RISKS, toPayload, type DeviceForm } from "@/components/DeviceForm";
 
 interface Device {
   id: number; hostname: string; deviceType: string | null; vendor: string | null;
@@ -15,60 +12,8 @@ interface Device {
   riskLevel: string; isGateway: number; archivedAtUTC: string | null;
 }
 
-type Form = {
-  hostname: string; deviceType: string; vendor: string; owner: string;
-  location: string; firmwareVersion: string; riskLevel: string; isGateway: boolean;
-};
-
-const EMPTY: Form = { hostname: "", deviceType: "", vendor: "", owner: "", location: "", firmwareVersion: "", riskLevel: "low", isGateway: false };
-
-const toPayload = (f: Form) => ({
-  hostname: f.hostname,
-  deviceType: f.deviceType || null,
-  vendor: f.vendor || null,
-  owner: f.owner || null,
-  location: f.location || null,
-  firmwareVersion: f.firmwareVersion || null,
-  riskLevel: f.riskLevel,
-  isGateway: f.isGateway ? 1 : 0,
-});
-
-const fromRow = (d: Device): Form => ({
-  hostname: d.hostname,
-  deviceType: d.deviceType ?? "",
-  vendor: d.vendor ?? "",
-  owner: d.owner ?? "",
-  location: d.location ?? "",
-  firmwareVersion: d.firmwareVersion ?? "",
-  riskLevel: d.riskLevel,
-  isGateway: d.isGateway === 1,
-});
-
-function Fields({ form, setForm }: { form: Form; setForm: (f: Form) => void }) {
-  return (
-    <>
-      <div className="grid gap-x-4 md:grid-cols-3">
-        <Field label="Hostname"><Input value={form.hostname} onChange={(e) => setForm({ ...form, hostname: e.target.value })} placeholder="thinkpad" /></Field>
-        <Field label="Type"><Input value={form.deviceType} onChange={(e) => setForm({ ...form, deviceType: e.target.value })} placeholder="laptop / camera / nas" /></Field>
-        <Field label="Vendor"><Input value={form.vendor} onChange={(e) => setForm({ ...form, vendor: e.target.value })} placeholder="Lenovo" /></Field>
-        <Field label="Owner"><Input value={form.owner} onChange={(e) => setForm({ ...form, owner: e.target.value })} placeholder="you" /></Field>
-        <Field label="Location"><Input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} placeholder="office" /></Field>
-        <Field label="Firmware"><Input value={form.firmwareVersion} onChange={(e) => setForm({ ...form, firmwareVersion: e.target.value })} placeholder="1.2.3" /></Field>
-        <Field label="Risk">
-          <Select value={form.riskLevel} onChange={(e) => setForm({ ...form, riskLevel: e.target.value })}>
-            {RISKS.map((r) => <option key={r} value={r}>{r}</option>)}
-          </Select>
-        </Field>
-      </div>
-      <label className="mb-3 flex items-center gap-2 text-sm text-foreground">
-        <input type="checkbox" checked={form.isGateway} onChange={(e) => setForm({ ...form, isGateway: e.target.checked })} />
-        Acts as a gateway / uplink root (shown at the top of the network map)
-      </label>
-    </>
-  );
-}
-
 export function Devices() {
+  const navigate = useNavigate();
   const [riskFilter, setRiskFilter] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const params = new URLSearchParams({ pageSize: "200" });
@@ -76,14 +21,9 @@ export function Devices() {
   if (showArchived) params.set("includeArchived", "true");
   const { data, loading, error, refetch } = useApi<{ data: Device[] }>(`/devices?${params.toString()}`);
 
-  const [form, setForm] = useState<Form>(EMPTY);
+  const [form, setForm] = useState<DeviceForm>(EMPTY);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-
-  const [editing, setEditing] = useState<Device | null>(null);
-  const [editForm, setEditForm] = useState<Form>(EMPTY);
-  const [editSaving, setEditSaving] = useState(false);
-  const [editError, setEditError] = useState<string | null>(null);
 
   async function create() {
     setSaving(true); setFormError(null);
@@ -94,22 +34,6 @@ export function Devices() {
     } catch (e) {
       setFormError(e instanceof Error ? e.message : "Failed to create");
     } finally { setSaving(false); }
-  }
-
-  function openEdit(d: Device) {
-    setEditing(d); setEditForm(fromRow(d)); setEditError(null);
-  }
-
-  async function saveEdit() {
-    if (!editing) return;
-    setEditSaving(true); setEditError(null);
-    try {
-      await apiPatch(`/devices/${editing.id}`, toPayload(editForm));
-      setEditing(null);
-      await refetch();
-    } catch (e) {
-      setEditError(e instanceof Error ? e.message : "Failed to save");
-    } finally { setEditSaving(false); }
   }
 
   const rowMut = useMutation();
@@ -172,8 +96,7 @@ export function Devices() {
                         <Button variant="outline" className="h-7 px-2 text-xs" onClick={() => restore(d.id)}>Unarchive</Button>
                       ) : (
                         <>
-                          <Link className="text-sm text-primary underline" to={`/devices/${d.id}`}>open</Link>
-                          <Button variant="outline" className="h-7 px-2 text-xs" onClick={() => openEdit(d)}>Edit</Button>
+                          <Button variant="outline" className="h-7 px-2 text-xs" onClick={() => navigate(`/devices/${d.id}`)}>Edit</Button>
                           <Button variant="ghost" className="h-7 px-2 text-xs" onClick={() => archive(d.id)}>Archive</Button>
                         </>
                       )}
@@ -185,21 +108,6 @@ export function Devices() {
           </tbody>
         </Table>
       )}
-
-      <Modal
-        open={editing !== null}
-        onClose={() => setEditing(null)}
-        title={editing ? `Edit ${editing.hostname}` : "Edit device"}
-        footer={
-          <>
-            <Button variant="ghost" onClick={() => setEditing(null)}>Cancel</Button>
-            <Button onClick={saveEdit} disabled={editSaving || !editForm.hostname}>{editSaving ? "Saving…" : "Save changes"}</Button>
-          </>
-        }
-      >
-        <Fields form={editForm} setForm={setEditForm} />
-        {editError && <p className="text-sm text-danger">{editError}</p>}
-      </Modal>
     </div>
   );
 }
